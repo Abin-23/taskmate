@@ -49,7 +49,7 @@ function sendVerificationEmail($recipientEmail, $verificationCode) {
 
 
 try {
-    $email = 'b24700430@gmail.com'; 
+    $email = 'abin37523@gmail.com'; 
     $verificationCode = generateVerificationCode();
 
    
