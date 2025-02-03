@@ -1,59 +1,72 @@
 <?php
-session_start();
+session_start(); 
 $error_message = '';
 
-if (isset($_SESSION['success_message'])) {
-    $success_message = $_SESSION['success_message'];
-    unset($_SESSION['success_message']);
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require 'PHPMailer-master/src/Exception.php';
+require 'PHPMailer-master/src/PHPMailer.php';
+require 'PHPMailer-master/src/SMTP.php';
+
+function generateVerificationCode($length = 6) {
+    return str_pad(random_int(0, pow(10, $length) - 1), $length, '0', STR_PAD_LEFT);
 }
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-   
-    $conn = new mysqli('localhost', 'root', '', 'taskmate');
-        
-    if ($conn->connect_error) {
-        error_log("Connection failed: " . $conn->connect_error);
-        $error_message = "An error occurred during login. Please try again later.";
-    } else {
-        
-        $email = $conn->real_escape_string(filter_var($_POST['email'], FILTER_SANITIZE_EMAIL));
-        $password = $_POST['password']; 
-        
-        $sql = "SELECT * FROM users WHERE email='$email'";
-        
-      
-        $result = $conn->query($sql);
-        
-        if ($result && $result->num_rows === 1) {
-            $user = $result->fetch_assoc();
-            
-            if (password_verify($password, $user['password'])) {
-             
-                if($user['role'] == "freelancer"){
-                    header('Location:freelancer_dash.php');
-                }
-                elseif($user['role'] == "client"){
-                    header('Location:client_dash.php');
-                    }
+function sendVerificationEmail($recipientEmail, $verificationCode) {
+    $mail = new PHPMailer(true);
+    try {
+        $mail->isSMTP();
+        $mail->Host       = 'smtp.gmail.com';
+        $mail->SMTPAuth   = true;
+        $mail->Username   = 'taskmate0369@gmail.com';
+        $mail->Password   = 'olal qtcm wdhl cyyx';
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = 587;
 
-            } else {
-                $error_message = "Invalid email or password";
-            }
+        $mail->setFrom('taskmate0369@gmail.com', 'TaskMate');
+        $mail->addAddress($recipientEmail);
+        $mail->Subject = 'Your Verification Code';
+        $mail->Body    = "Your verification code is: $verificationCode\n\nThis code will expire in 10 minutes.";
+
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        error_log("Email sending failed: " . $mail->ErrorInfo);
+        return false;
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    if (isset($_POST['email'])) {
+        $email = $_POST['email'];
+        $verificationCode = generateVerificationCode();
+        $_SESSION['verification_code'] = $verificationCode;
+        $_SESSION['email'] = $email;
+
+        if (sendVerificationEmail($email, $verificationCode)) {
+            echo"";
         } else {
-            $error_message = "Invalid email or password";
+            $error_message= "Failed to send verification code.";
         }
-        
-        
-        $conn->close();
+    } elseif (isset($_POST['verify'])) {
+        $enteredOTP = $_POST['otp1'] . $_POST['otp2'] . $_POST['otp3'] . $_POST['otp4'] . $_POST['otp5'] . $_POST['otp6'];
+        if ($enteredOTP == $_SESSION['verification_code']) {
+            header('Location: resetpassword.php');
+            unset($_SESSION['verification_code']);  
+        } else {
+            $error_message="Incorrect OTP.";
+        }
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TaskMate - Login</title>
+    <title>TaskMate - OTP Verification</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -110,47 +123,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             font-size: 0.9rem;
         }
 
-        .input-group {
-            position: relative;
+        .otp-inputs {
+            display: flex;
+            justify-content: space-between;
         }
 
-        .input-group i {
-            position: absolute;
-            left: 1rem;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #94a3b8;
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: 0.8rem 1rem 0.8rem 2.5rem;
+        .otp-inputs input {
+            width: 3rem;
+            height: 3rem;
+            text-align: center;
+            font-size: 1.5rem;
             border: 2px solid #e2e8f0;
             border-radius: 10px;
-            font-size: 1rem;
             transition: all 0.3s ease;
         }
 
-        .form-group input:focus {
+        .otp-inputs input:focus {
             outline: none;
             border-color: #2563eb;
             box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-        }
-
-        .forgot-password {
-            text-align: right;
-            margin-bottom: 1.5rem;
-        }
-
-        .forgot-password a {
-            color: #2563eb;
-            text-decoration: none;
-            font-size: 0.9rem;
-            transition: color 0.3s ease;
-        }
-
-        .forgot-password a:hover {
-            color: #1d4ed8;
         }
 
         .login-btn {
@@ -172,23 +163,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
         }
 
-        .signup-link {
+        .resend-text {
             text-align: center;
             margin-top: 1.5rem;
             color: #64748b;
         }
 
-        .signup-link a {
+        .resend-text a {
             color: #2563eb;
             text-decoration: none;
             font-weight: 500;
             transition: color 0.3s ease;
         }
 
-        .signup-link a:hover {
+        .resend-text a:hover {
             color: #1d4ed8;
         }
-
         .error-message {
             background-color: #fee2e2;
             color: #dc2626;
@@ -196,15 +186,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             border-radius: 8px;
             margin-bottom: 1rem;
             text-align: center;
-        }
-        .success-message {
-            background-color: #d1fae5;
-            color: #065f46;
-            padding: 0.75rem;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-            text-align: center;
-            font-weight: 500;
         }
 
         @keyframes slideUp {
@@ -224,40 +205,33 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <div class="logo">
             <span class="task">Task</span><span class="mate">Mate</span>
         </div>
-        <h2>Welcome Back!</h2>
+        <h2>OTP Verification</h2>
         <?php if (!empty($error_message)): ?>
             <div class="error-message">
                 <?php echo htmlspecialchars($error_message); ?>
             </div>
         <?php endif; ?>
-        <?php if (!empty($success_message)): ?>
-        <div class="success-message">
-            <?php echo htmlspecialchars($success_message); ?>
-        </div>
-    <?php endif; ?>
+        <p style="text-align: center; color: #64748b; margin-bottom: 1.5rem;">Enter the 6-digit code sent to your email.</p>
         <form method="POST" action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>">
-            <div class="form-group">
-                <label for="email">Email</label>
-                <div class="input-group">
-                    <i class="fas fa-envelope"></i>
-                    <input type="email" id="email" required placeholder="Enter your email" name="email">
-                </div>
+            <div class="form-group otp-inputs">
+                <input type="text" maxlength="1" required oninput="moveToNext(this, 'otp2')" id="otp1" name="otp1">
+                <input type="text" maxlength="1" required oninput="moveToNext(this, 'otp3')" id="otp2" name="otp2">
+                <input type="text" maxlength="1" required oninput="moveToNext(this, 'otp4')" id="otp3" name="otp3">
+                <input type="text" maxlength="1" required oninput="moveToNext(this, 'otp5')" id="otp4" name="otp4">
+                <input type="text" maxlength="1" required oninput="moveToNext(this, 'otp6')" id="otp5" name="otp5">
+                <input type="text" maxlength="1" required id="otp6" name="otp6">
             </div>
-            <div class="form-group">
-                <label for="password">Password</label>
-                <div class="input-group">
-                    <i class="fas fa-lock"></i>
-                    <input type="password" id="password" required placeholder="Enter your password" name="password">
-                </div>
-            </div>
-            <div class="forgot-password">
-                <a href="forgetpassword.php">Forgot Password?</a>
-            </div>
-            <button type="submit" class="login-btn">Log In</button>
-            <div class="signup-link">
-                Don't have an account? <a href="signup.php">Sign Up</a>
-            </div>
+            <button type="submit" class="login-btn" name="verify">Verify OTP</button>
+            <p class="resend-text">Didn't receive the code? <a href="#">Resend OTP</a></p>
         </form>
-    </div> 
+    </div>
+
+    <script>
+        function moveToNext(current, nextFieldID) {
+            if (current.value.length === 1) {
+                document.getElementById(nextFieldID)?.focus();
+            }
+        }
+    </script>
 </body>
 </html>

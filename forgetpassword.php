@@ -2,11 +2,6 @@
 session_start();
 $error_message = '';
 
-if (isset($_SESSION['success_message'])) {
-    $success_message = $_SESSION['success_message'];
-    unset($_SESSION['success_message']);
-}
-
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
    
     $conn = new mysqli('localhost', 'root', '', 'taskmate');
@@ -16,35 +11,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $error_message = "An error occurred during login. Please try again later.";
     } else {
         
-        $email = $conn->real_escape_string(filter_var($_POST['email'], FILTER_SANITIZE_EMAIL));
-        $password = $_POST['password']; 
-        
+        $email = $conn->real_escape_string(filter_var($_POST['email'], FILTER_SANITIZE_EMAIL)); 
         $sql = "SELECT * FROM users WHERE email='$email'";
         
-      
         $result = $conn->query($sql);
         
         if ($result && $result->num_rows === 1) {
             $user = $result->fetch_assoc();
-            
-            if (password_verify($password, $user['password'])) {
-             
-                if($user['role'] == "freelancer"){
-                    header('Location:freelancer_dash.php');
-                }
-                elseif($user['role'] == "client"){
-                    header('Location:client_dash.php');
-                    }
+            echo'<form id="form" method="POST" action="send_reset_otp.php">';
+            echo '<input type="hidden" name="email" value="' . $email . '">';
+            echo'</form>';
+            echo'<script>document.getElementById("form").submit();</script>';
 
-            } else {
-                $error_message = "Invalid email or password";
-            }
         } else {
-            $error_message = "Invalid email or password";
+            $error_message = "Invalid email";
         }
         
-        
-        $conn->close();
+               $conn->close();
     }
 }
 ?>
@@ -53,7 +36,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TaskMate - Login</title>
+    <title>TaskMate - Forgot Password</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -96,7 +79,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         h2 {
             text-align: center;
             color: #1e293b;
-            margin-bottom: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        p.description {
+            text-align: center;
+            color: #64748b;
+            margin-bottom: 1.5rem;
         }
 
         .form-group {
@@ -110,21 +99,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             font-size: 0.9rem;
         }
 
-        .input-group {
-            position: relative;
-        }
-
-        .input-group i {
-            position: absolute;
-            left: 1rem;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #94a3b8;
-        }
-
         .form-group input {
             width: 100%;
-            padding: 0.8rem 1rem 0.8rem 2.5rem;
+            padding: 0.8rem;
             border: 2px solid #e2e8f0;
             border-radius: 10px;
             font-size: 1rem;
@@ -135,22 +112,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             outline: none;
             border-color: #2563eb;
             box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-        }
-
-        .forgot-password {
-            text-align: right;
-            margin-bottom: 1.5rem;
-        }
-
-        .forgot-password a {
-            color: #2563eb;
-            text-decoration: none;
-            font-size: 0.9rem;
-            transition: color 0.3s ease;
-        }
-
-        .forgot-password a:hover {
-            color: #1d4ed8;
         }
 
         .login-btn {
@@ -172,23 +133,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
         }
 
-        .signup-link {
+        .back-to-login {
             text-align: center;
             margin-top: 1.5rem;
             color: #64748b;
         }
 
-        .signup-link a {
+        .back-to-login a {
             color: #2563eb;
             text-decoration: none;
             font-weight: 500;
             transition: color 0.3s ease;
         }
 
-        .signup-link a:hover {
+        .back-to-login a:hover {
             color: #1d4ed8;
         }
-
         .error-message {
             background-color: #fee2e2;
             color: #dc2626;
@@ -196,15 +156,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             border-radius: 8px;
             margin-bottom: 1rem;
             text-align: center;
-        }
-        .success-message {
-            background-color: #d1fae5;
-            color: #065f46;
-            padding: 0.75rem;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-            text-align: center;
-            font-weight: 500;
         }
 
         @keyframes slideUp {
@@ -224,40 +175,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <div class="logo">
             <span class="task">Task</span><span class="mate">Mate</span>
         </div>
-        <h2>Welcome Back!</h2>
+        <h2>Forgot Password</h2>
+        <p class="description">Enter your email to receive an otp.</p>
         <?php if (!empty($error_message)): ?>
             <div class="error-message">
                 <?php echo htmlspecialchars($error_message); ?>
             </div>
         <?php endif; ?>
-        <?php if (!empty($success_message)): ?>
-        <div class="success-message">
-            <?php echo htmlspecialchars($success_message); ?>
-        </div>
-    <?php endif; ?>
         <form method="POST" action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>">
             <div class="form-group">
-                <label for="email">Email</label>
-                <div class="input-group">
-                    <i class="fas fa-envelope"></i>
-                    <input type="email" id="email" required placeholder="Enter your email" name="email">
-                </div>
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" placeholder="Enter your email" required>
             </div>
-            <div class="form-group">
-                <label for="password">Password</label>
-                <div class="input-group">
-                    <i class="fas fa-lock"></i>
-                    <input type="password" id="password" required placeholder="Enter your password" name="password">
-                </div>
-            </div>
-            <div class="forgot-password">
-                <a href="forgetpassword.php">Forgot Password?</a>
-            </div>
-            <button type="submit" class="login-btn">Log In</button>
-            <div class="signup-link">
-                Don't have an account? <a href="signup.php">Sign Up</a>
-            </div>
+            <button type="submit" class="login-btn">Send An OTP</button>
+            <p class="back-to-login">Remember your password? <a href="signin.php">Login here</a></p>
         </form>
-    </div> 
+    </div>
 </body>
 </html>

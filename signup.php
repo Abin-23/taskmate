@@ -342,20 +342,27 @@ mysqli_close($conn);
         const roleInput = document.getElementById('user-type');
 
         function checkName() {
-            if (nameInput.value.trim() === '') {
-                nameError.innerHTML = "Name is required";
-                nameInput.style.border = "2px solid red";
-                return false;
-            } else if (nameInput.value.length < 3 || nameInput.value.length > 20) {
-                nameError.innerHTML = "Name should be between 3 to 20 characters";
-                nameInput.style.border = "2px solid red";
-                return false;
-            } else {
-                nameError.innerHTML = "";
-                nameInput.style.border = "2px solid green";
-                return true;
-            }  
-        }
+    const namePattern = /^[A-Za-z\s]+$/; 
+    const nameValue = nameInput.value.trim();
+
+    if (nameValue === '') {
+        nameError.innerHTML = "Name is required";
+        nameInput.style.border = "2px solid red";
+        return false;
+    } else if (nameValue.length < 3 || nameValue.length > 20) {
+        nameError.innerHTML = "Name should be between 3 to 20 characters";
+        nameInput.style.border = "2px solid red";
+        return false;
+    } else if (!namePattern.test(nameValue)) {
+        nameError.innerHTML = "Name should contain only letters and spaces";
+        nameInput.style.border = "2px solid red";
+        return false;
+    } else {
+        nameError.innerHTML = "";
+        nameInput.style.border = "2px solid green";
+        return true;
+    }
+}
 
         function checkEmail() {
             const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -375,7 +382,7 @@ mysqli_close($conn);
         }
 
         function checkMobile() {
-            const mobilePattern = /^\d{10}$/;
+            const mobilePattern = /^[6-9]\d{9}$/;
             if (mobInput.value.trim() === '') {
                 mobError.innerHTML = "Mobile number is required";
                 mobInput.style.border = "2px solid red";
@@ -392,20 +399,25 @@ mysqli_close($conn);
         }
 
         function checkPassword() {
-            if (passwordInput.value.trim() === '') {
-                passwordError.innerHTML = "Password is required";
-                passwordInput.style.border = "2px solid red";
-                return false;
-            } else if (passwordInput.value.length < 8) {
-                passwordError.innerHTML = "Password should be at least 8 characters long";
-                passwordInput.style.border = "2px solid red";
-                return false;
-            } else {
-                passwordError.innerHTML = "";
-                passwordInput.style.border = "2px solid green";
-                return true;
-            }
-        }
+    const password = passwordInput.value.trim();
+    const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/;
+
+    if (password === '') {
+        passwordError.innerHTML = "Password is required";
+        passwordInput.style.border = "2px solid red";
+        return false;
+    } else if (!passwordPattern.test(password)) {
+        passwordError.innerHTML = 
+        "Password must be 8+ characters with uppercase, lowercase, and a number.";
+        passwordInput.style.border = "2px solid red";
+        return false;
+    } else {
+        passwordError.innerHTML = "";
+        passwordInput.style.border = "2px solid green";
+        return true;
+    }
+}
+
 
         function checkConfirmPassword() {
             if (cpasswordInput.value.trim() === '') {
