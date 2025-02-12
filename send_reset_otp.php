@@ -24,7 +24,7 @@ function sendVerificationEmail($recipientEmail, $verificationCode) {
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port       = 587;
 
-        $mail->setFrom('taskmate0369@gmail.com', 'TaskMate');
+        $mail->setFrom('taskmate0369@gmail.com', 'Taskmate');
         $mail->addAddress($recipientEmail);
         $mail->Subject = 'Your Verification Code';
         $mail->Body    = "Your verification code is: $verificationCode\n\nThis code will expire in 10 minutes.";
@@ -37,29 +37,48 @@ function sendVerificationEmail($recipientEmail, $verificationCode) {
     }
 }
 
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    // Step 1: Send Verification Email
     if (isset($_POST['email'])) {
         $email = $_POST['email'];
         $verificationCode = generateVerificationCode();
         $_SESSION['verification_code'] = $verificationCode;
         $_SESSION['email'] = $email;
+        
+        
+        $_SESSION['otp_expire_time'] = time() + (10 * 60);  
 
         if (sendVerificationEmail($email, $verificationCode)) {
-            echo"";
+            echo ""; 
         } else {
-            $error_message= "Failed to send verification code.";
+            $error_message = " Failed to send verification code.";
         }
-    } elseif (isset($_POST['verify'])) {
-        $enteredOTP = $_POST['otp1'] . $_POST['otp2'] . $_POST['otp3'] . $_POST['otp4'] . $_POST['otp5'] . $_POST['otp6'];
-        if ($enteredOTP == $_SESSION['verification_code']) {
-            header('Location: resetpassword.php');
-            unset($_SESSION['verification_code']);  
+    }
+
+    
+    elseif (isset($_POST['verify'])) {
+        
+        if (isset($_SESSION['otp_expire_time']) && time() > $_SESSION['otp_expire_time']) {
+            $error_message = "OTP has expired. Please request a new one.";
+            unset($_SESSION['verification_code']);
+            unset($_SESSION['otp_expire_time']);
         } else {
-            $error_message="Incorrect OTP.";
+         
+            $enteredOTP = $_POST['otp1'] . $_POST['otp2'] . $_POST['otp3'] . $_POST['otp4'] . $_POST['otp5'] . $_POST['otp6'];
+            
+            if ($enteredOTP == $_SESSION['verification_code']) {
+                header('Location: resetpassword.php');
+                unset($_SESSION['verification_code']);  
+                unset($_SESSION['otp_expire_time']);  
+            } else {
+                $error_message = "Incorrect OTP.";
+            }
         }
     }
 }
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">

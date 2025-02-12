@@ -1,3 +1,34 @@
+<?php
+session_start();
+$host = 'localhost';
+$db = 'taskmate';
+$user = 'root';
+$pass = '';
+
+
+$conn = new mysqli($host, $user, $pass, $db);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+if (!isset($_SESSION['user_id'])) {
+    header("Location: signin.php");
+    exit();
+}
+
+$sql = "SELECT * FROM freelancer_profile WHERE user_id='" . $_SESSION['user_id'] . "'";
+$result = $conn->query($sql);
+
+if ($result && $result->num_rows <1) {
+    header('Location:freelancer_profile.php');    
+}
+
+$user = $result->fetch_assoc();
+$sql2= "SELECT * FROM users WHERE id='" . $_SESSION['user_id'] . "'";
+$result2 = $conn->query($sql2);
+$user2 = $result2->fetch_assoc();
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -134,6 +165,35 @@
             margin: 0 30px;
             position: relative;
         }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .logout-btn {
+            padding: 8px 16px;
+            background: linear-gradient(to right, var(--gradient-start), var(--gradient-end));
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: linear-gradient(to right, var(--primary-dark), var(--gradient-start));
+            transform: translateY(-2px);
+        }
+
+        .logout-btn i {
+            font-size: 0.9em;
+        }
+
 
         .search-bar input {
             width: 100%;
@@ -366,11 +426,11 @@
             <span>Task</span><span>Mate</span>
         </div>
         <ul class="nav-links">
-            <li><a href="#" class="active"><i class="fas fa-th-large"></i>Dashboard</a></li>
+            <li><a href="freelancer_dash.php" class="active"><i class="fas fa-th-large"></i>Dashboard</a></li>
             <li><a href="#"><i class="fas fa-briefcase"></i>My Jobs</a></li>
-            <li><a href="#"><i class="fas fa-message"></i>Messages</a></li>
+            <li><a href="profile_freelancer.php"><i class="fas fa-user"></i>Profile</a></li>
             <li><a href="#"><i class="fas fa-wallet"></i>Earnings</a></li>
-            <li><a href="#"><i class="fas fa-gear"></i>Settings</a></li>
+            <li><a href="freelancer_settings.php"><i class="fas fa-gear"></i>Settings</a></li>
         </ul>
     </div>
 
@@ -388,9 +448,17 @@
                     <i class="fas fa-bell"></i>
                     <div class="notification-dot"></div>
                 </div>
-                <img src="/api/placeholder/40/40" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <img src="<?php echo $user['profile_picture'];?>" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <a href="logout.php" class="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </a>
             </div>
         </div>
+        <div style="margin-bottom: 30px;">
+    <h1 style="color: #1e293b; font-size: 2rem; font-weight: 700;">Welcome back, <?php echo htmlspecialchars($user2['name']); ?>! 👋</h1>
+    <p style="color: #64748b; margin-top: 8px;">Here's what's happening with your projects today.</p>
+</div>
 
         <div class="stats-grid">
             <div class="stat-card">

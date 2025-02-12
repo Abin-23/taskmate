@@ -23,11 +23,13 @@ CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
-    mobile VARCHAR(15) NOT NULL ,
-    role ENUM('freelancer', 'client') NOT NULL,
+    mobile VARCHAR(15) NOT NULL,
+    role ENUM('freelancer', 'client','admin') NOT NULL,
     password VARCHAR(255) NOT NULL,
+    active TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)";
+);";
+
 if (!mysqli_query($conn, $sql_create_table)) {
     die("Error creating table: " . mysqli_error($conn));
 }
@@ -327,155 +329,191 @@ mysqli_close($conn);
    
     <script>
       document.addEventListener('DOMContentLoaded', function() {
-        const nameError = document.getElementById('name-error');
-        const emailError = document.getElementById('email-error');
-        const mobError = document.getElementById('mob-error');
-        const passwordError = document.getElementById('password-error');
-        const cpasswordError = document.getElementById('cpassword-error');
-        const roleError = document.getElementById('role-error');
+    const nameError = document.getElementById('name-error');
+    const emailError = document.getElementById('email-error');
+    const mobError = document.getElementById('mob-error');
+    const passwordError = document.getElementById('password-error');
+    const cpasswordError = document.getElementById('cpassword-error');
+    const roleError = document.getElementById('role-error');
 
-        const nameInput = document.getElementById('name');
-        const emailInput = document.getElementById('email');
-        const mobInput = document.getElementById('mobile');
-        const passwordInput = document.getElementById('password');
-        const cpasswordInput = document.getElementById('confirm-password');
-        const roleInput = document.getElementById('user-type');
+    const nameInput = document.getElementById('name');
+    const emailInput = document.getElementById('email');
+    const mobInput = document.getElementById('mobile');
+    const passwordInput = document.getElementById('password');
+    const cpasswordInput = document.getElementById('confirm-password');
+    const roleInput = document.getElementById('user-type');
 
-        function checkName() {
-    const namePattern = /^[A-Za-z\s]+$/; 
-    const nameValue = nameInput.value.trim();
+    function checkName() {
+        const namePattern = /^[A-Za-z\s]+$/;
+        const nameValue = nameInput.value.trim();
 
-    if (nameValue === '') {
-        nameError.innerHTML = "Name is required";
-        nameInput.style.border = "2px solid red";
-        return false;
-    } else if (nameValue.length < 3 || nameValue.length > 20) {
-        nameError.innerHTML = "Name should be between 3 to 20 characters";
-        nameInput.style.border = "2px solid red";
-        return false;
-    } else if (!namePattern.test(nameValue)) {
-        nameError.innerHTML = "Name should contain only letters and spaces";
-        nameInput.style.border = "2px solid red";
-        return false;
-    } else {
-        nameError.innerHTML = "";
-        nameInput.style.border = "2px solid green";
-        return true;
+        if (nameValue === '') {
+            nameError.innerHTML = "Name is required";
+            nameInput.style.border = "2px solid red";
+            return false;
+        } else if (nameValue.length < 3 || nameValue.length > 20) {
+            nameError.innerHTML = "Name should be between 3 to 20 characters";
+            nameInput.style.border = "2px solid red";
+            return false;
+        } else if (!namePattern.test(nameValue)) {
+            nameError.innerHTML = "Name should contain only letters and spaces";
+            nameInput.style.border = "2px solid red";
+            return false;
+        } else {
+            nameError.innerHTML = "";
+            nameInput.style.border = "2px solid green";
+            return true;
+        }
     }
-}
 
-        function checkEmail() {
-            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (emailInput.value.trim() === '') {
-                emailError.innerHTML = "Email is required";
+    async function checkEmail() {
+        const email = emailInput.value.trim();
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        if (email === '') {
+            emailError.innerHTML = "Email is required.";
+            emailInput.style.border = "2px solid red";
+            return false;
+        }
+        if (!emailPattern.test(email)) {
+            emailError.innerHTML = "Please enter a valid email address.";
+            emailInput.style.border = "2px solid red";
+            return false;
+        }
+
+        try {
+            const response = await fetch('check_email.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: `email=${encodeURIComponent(email)}`
+            });
+            const data = await response.text();
+
+            if (data === 'invalid_domain') {
+                emailError.innerHTML = "This email domain is not valid.";
                 emailInput.style.border = "2px solid red";
                 return false;
-            } else if (!emailPattern.test(emailInput.value)) {
-                emailError.innerHTML = "Please enter a valid email address";
+            } else if (data === 'taken') {
+                emailError.innerHTML = "This email is already registered.";
                 emailInput.style.border = "2px solid red";
                 return false;
-            } else {
+            } else if (data === 'available') {
                 emailError.innerHTML = "";
                 emailInput.style.border = "2px solid green";
                 return true;
-            }
-        }
-
-        function checkMobile() {
-            const mobilePattern = /^[6-9]\d{9}$/;
-            if (mobInput.value.trim() === '') {
-                mobError.innerHTML = "Mobile number is required";
-                mobInput.style.border = "2px solid red";
-                return false;
-            } else if (!mobilePattern.test(mobInput.value)) {
-                mobError.innerHTML = "Please enter a valid 10-digit mobile number";
-                mobInput.style.border = "2px solid red";
-                return false;
             } else {
-                mobError.innerHTML = "";
-                mobInput.style.border = "2px solid green";
-                return true;
+                emailError.innerHTML = "An unexpected error occurred.";
+                emailInput.style.border = "2px solid red";
+                return false;
             }
+        } catch (error) {
+            console.error('Error:', error);
+            emailError.innerHTML = "Unable to verify email at the moment.";
+            emailInput.style.border = "2px solid red";
+            return false;
         }
-
-        function checkPassword() {
-    const password = passwordInput.value.trim();
-    const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/;
-
-    if (password === '') {
-        passwordError.innerHTML = "Password is required";
-        passwordInput.style.border = "2px solid red";
-        return false;
-    } else if (!passwordPattern.test(password)) {
-        passwordError.innerHTML = 
-        "Password must be 8+ characters with uppercase, lowercase, and a number.";
-        passwordInput.style.border = "2px solid red";
-        return false;
-    } else {
-        passwordError.innerHTML = "";
-        passwordInput.style.border = "2px solid green";
-        return true;
     }
-}
 
-
-        function checkConfirmPassword() {
-            if (cpasswordInput.value.trim() === '') {
-                cpasswordError.innerHTML = "Please confirm your password";
-                cpasswordInput.style.border = "2px solid red";
-                return false;
-            } else if (cpasswordInput.value !== passwordInput.value) {
-                cpasswordError.innerHTML = "Passwords do not match";
-                cpasswordInput.style.border = "2px solid red";
-                return false;
-            } else {
-                cpasswordError.innerHTML = "";
-                cpasswordInput.style.border = "2px solid green";
-                return true;
-            }
+    function checkMobile() {
+        const mobilePattern = /^[6-9]\d{9}$/;
+        if (mobInput.value.trim() === '') {
+            mobError.innerHTML = "Mobile number is required";
+            mobInput.style.border = "2px solid red";
+            return false;
+        } else if (!mobilePattern.test(mobInput.value)) {
+            mobError.innerHTML = "Enter a valid 10-digit mobile number";
+            mobInput.style.border = "2px solid red";
+            return false;
+        } else {
+            mobError.innerHTML = "";
+            mobInput.style.border = "2px solid green";
+            return true;
         }
+    }
 
-        function checkRole() {
-            if (roleInput.value === '') {
-                roleError.innerHTML = "Please select a role";
-                roleInput.style.border = "2px solid red";
-                return false;
-            } else {
-                roleError.innerHTML = "";
-                roleInput.style.border = "2px solid green";
-                return true;
-            }
+    function checkPassword() {
+        const password = passwordInput.value.trim();
+        const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/;
+
+        if (password === '') {
+            passwordError.innerHTML = "Password is required";
+            passwordInput.style.border = "2px solid red";
+            return false;
+        } else if (!passwordPattern.test(password)) {
+            passwordError.innerHTML = 
+                "Password must be 8+ characters with uppercase, lowercase, and a number.";
+            passwordInput.style.border = "2px solid red";
+            return false;
+        } else {
+            passwordError.innerHTML = "";
+            passwordInput.style.border = "2px solid green";
+            return true;
         }
+    }
 
-        nameInput.addEventListener('input', checkName);
-        emailInput.addEventListener('input', checkEmail);
-        mobInput.addEventListener('input', checkMobile);
-        passwordInput.addEventListener('input', function() {
-            checkPassword();
-            if (cpasswordInput.value !== '') {
-                checkConfirmPassword();
-            }
-        });
-        cpasswordInput.addEventListener('input', checkConfirmPassword);
-        roleInput.addEventListener('change', checkRole);
+    function checkConfirmPassword() {
+        if (cpasswordInput.value.trim() === '') {
+            cpasswordError.innerHTML = "Please confirm your password";
+            cpasswordInput.style.border = "2px solid red";
+            return false;
+        } else if (cpasswordInput.value !== passwordInput.value) {
+            cpasswordError.innerHTML = "Passwords do not match";
+            cpasswordInput.style.border = "2px solid red";
+            return false;
+        } else {
+            cpasswordError.innerHTML = "";
+            cpasswordInput.style.border = "2px solid green";
+            return true;
+        }
+    }
 
-        document.getElementById('form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            let isValid = true;
-            if (!checkName()) isValid = false;
-            if (!checkEmail()) isValid = false;
-            if (!checkMobile()) isValid = false;
-            if (!checkPassword()) isValid = false;
-            if (!checkConfirmPassword()) isValid = false;
-            if (!checkRole()) isValid = false;
-            
-            if (isValid) {
-                console.log('Form is valid, submitting...');
-                this.submit();
-            }
-        });
+    function checkRole() {
+        if (roleInput.value === '') {
+            roleError.innerHTML = "Please select a role";
+            roleInput.style.border = "2px solid red";
+            return false;
+        } else {
+            roleError.innerHTML = "";
+            roleInput.style.border = "2px solid green";
+            return true;
+        }
+    }
+
+    nameInput.addEventListener('input', checkName);
+    emailInput.addEventListener('input', checkEmail);
+    mobInput.addEventListener('input', checkMobile);
+    passwordInput.addEventListener('input', function() {
+        checkPassword();
+        if (cpasswordInput.value !== '') {
+            checkConfirmPassword();
+        }
     });
+    cpasswordInput.addEventListener('input', checkConfirmPassword);
+    roleInput.addEventListener('change', checkRole);
+
+    document.getElementById('form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        let isValid = true;
+
+        if (!checkName()) isValid = false;
+        if (!await checkEmail()) isValid = false;  // ⬅️ Added 'await' here
+        if (!checkMobile()) isValid = false;
+        if (!checkPassword()) isValid = false;
+        if (!checkConfirmPassword()) isValid = false;
+        if (!checkRole()) isValid = false;
+
+        if (isValid) {
+            console.log('Form is valid, submitting...');
+            this.submit();
+        } else {
+            console.log('Form has errors.');
+        }
+    });
+});
+
     </script>
 </body>
 </html>

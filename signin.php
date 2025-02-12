@@ -27,14 +27,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         if ($result && $result->num_rows === 1) {
             $user = $result->fetch_assoc();
             
-            if (password_verify($password, $user['password'])) {
+            if (password_verify($password, $user['password'])&& $user['active']==1) {
              
                 if($user['role'] == "freelancer"){
+                    $_SESSION['user_id'] = $user['id'];
                     header('Location:freelancer_dash.php');
+
                 }
                 elseif($user['role'] == "client"){
+                    $_SESSION['user_id'] = $user['id'];
                     header('Location:client_dash.php');
                     }
+                elseif($user['role'] == "admin"){
+                    $_SESSION['user_id'] = $user['id'];
+                    header('Location:admindash.php');
+                }
 
             } else {
                 $error_message = "Invalid email or password";

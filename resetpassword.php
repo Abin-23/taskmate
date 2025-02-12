@@ -214,7 +214,7 @@ if ($conn->connect_error) {
                 const password = passwordInput.value.trim();
                 const confirmPassword = cpasswordInput.value.trim();
                 
-                // Confirm password should only be checked if both fields are filled
+        
                 if (confirmPassword === '') {
                     cpasswordError.innerHTML = "Please confirm your password";
                     cpasswordInput.style.border = "2px solid red";
