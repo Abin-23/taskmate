@@ -16,7 +16,6 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Get freelancer_id from freelancer_profile
 $freelancer_query = "SELECT profile_id FROM freelancer_profile WHERE user_id = " . $_SESSION['user_id']." ";
 $freelancer_result = $conn->query($freelancer_query);
 if (!$freelancer_result->num_rows) {
@@ -24,7 +23,6 @@ if (!$freelancer_result->num_rows) {
 }
 $freelancer_id = $freelancer_result->fetch_assoc()['profile_id'];
 
-// Get all skills grouped by category
 $skills_query = "SELECT id, category, skill_name FROM skills ORDER BY category, skill_name";
 $skills_result = $conn->query($skills_query);
 $skills_by_category = [];
@@ -34,11 +32,9 @@ while ($skill = $skills_result->fetch_assoc()) {
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (!empty($_POST['skills'])) {
-        // Delete existing skills
         $delete_sql = "DELETE FROM freelancer_skills WHERE profile_id = $freelancer_id";
         $conn->query($delete_sql);
 
-        // Insert new skills
         $insert_sql = "INSERT INTO freelancer_skills (profile_id, skill_id) VALUES ";
         $values = [];
         foreach ($_POST['skills'] as $skill_id) {
@@ -58,7 +54,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-// Get currently selected skills
 $selected_skills = [];
 $current_skills_query = "SELECT skill_id FROM freelancer_skills WHERE profile_id = $freelancer_id";
 $current_skills_result = $conn->query($current_skills_query);

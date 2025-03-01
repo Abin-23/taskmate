@@ -489,7 +489,7 @@ $conn->close();
             </div>
             <div class="stat-card">
                 <h3><i class="fas fa-dollar-sign"></i>Total Revenue</h3>
-                <div class="stat-value">$45,670</div>
+                <div class="stat-value">₹45,670</div>
                 <div class="stat-trend">↑ 22% this month</div>
             </div>
         </div>

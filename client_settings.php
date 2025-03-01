@@ -94,6 +94,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             --sidebar-width: 280px;
             --gradient-start: #3b82f6;
             --gradient-end: #60a5fa;
+            --error-color: #ef4444;
+            --success-color: #10b981;
+            --info-color: #0ea5e9;
         }
 
         body {
@@ -212,6 +215,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         .form-group {
             margin-bottom: 20px;
+            position: relative;
         }
 
         .form-group label {
@@ -236,6 +240,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             border-color: var(--primary-color);
             outline: none;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-group input.error {
+            border-color: var(--error-color);
+        }
+
+        .validation-message {
+            font-size: 0.85em;
+            margin-top: 5px;
+            display: block;
+        }
+
+        .error-message {
+            color: var(--error-color);
         }
 
         .toggle-switch {
@@ -315,6 +333,28 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             gap: 10px;
         }
 
+        .error-alert {
+            background: #fee2e2;
+            color: #b91c1c;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .info-message {
+            background: #e0f2fe;
+            color: #0c4a6e;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
         @media (max-width: 768px) {
             .main-content {
                 margin-left: 0;
@@ -355,21 +395,37 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </div>
             <?php endif; ?>
 
+            <?php if (isset($error)): ?>
+            <div class="error-alert">
+                <i class="fas fa-exclamation-circle"></i>
+                <?php echo $error; ?>
+            </div>
+            <?php endif; ?>
+
+            <?php if (isset($info_message)): ?>
+            <div class="info-message">
+                <i class="fas fa-info-circle"></i>
+                <?php echo $info_message; ?>
+            </div>
+            <?php endif; ?>
+
             <div class="section">
                 <div class="section-header">
                     <i class="fas fa-user-circle"></i>
                     <h2>Profile Settings</h2>
                 </div>
-                <form method="POST" action="#">
+                <form method="POST" action="#" id="profileForm">
                     <div class="form-group">
                         <label for="name">Full Name</label>
-                        <input type="text" id="name" name="name" value="<?php echo $user_data['name'];?>">
+                        <input type="text" id="name" name="name" value="<?php echo $user_data['name'];?>" data-original="<?php echo $user_data['name'];?>">
+                        <span class="validation-message" id="nameValidation"></span>
                     </div>
                     <div class="form-group">
                         <label for="email">Email</label>
-                        <input type="email" id="email" name="email" value="<?php echo $user_data['email'];?>">
+                        <input type="email" id="email" name="email" value="<?php echo $user_data['email'];?>" data-original="<?php echo $user_data['email'];?>">
+                        <span class="validation-message" id="emailValidation"></span>
                     </div>
-                    <button type="submit" name="update_profile" class="btn btn-primary">Update Profile</button>
+                    <button type="submit" name="update_profile" class="btn btn-primary" id="profileBtn">Update Profile</button>
                 </form>
             </div>
 
@@ -378,27 +434,43 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <i class="fas fa-lock"></i>
                     <h2>Security Settings</h2>
                 </div>
-                <form method="POST" action="#">
+                <?php if (isset($password_success)): ?>
+                <div class="success-message">
+                    <i class="fas fa-check-circle"></i>
+                    <?php echo $password_success; ?>
+                </div>
+                <?php endif; ?>
+
+                <?php if (isset($password_error)): ?>
+                <div class="error-alert">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <?php echo $password_error; ?>
+                </div>
+                <?php endif; ?>
+                
+                <form method="POST" action="#" id="passwordForm">
                     <div class="form-group">
                         <label for="current_password">Current Password</label>
                         <input type="password" id="current_password" name="current_password">
+                        <span class="validation-message" id="currentPasswordValidation"></span>
                     </div>
                     <div class="form-group">
                         <label for="new_password">New Password</label>
                         <input type="password" id="new_password" name="new_password">
+                        <span class="validation-message" id="newPasswordValidation"></span>
                     </div>
                     <div class="form-group">
                         <label for="confirm_password">Confirm New Password</label>
                         <input type="password" id="confirm_password" name="confirm_password">
+                        <span class="validation-message" id="confirmPasswordValidation"></span>
                     </div>
-                    <button type="submit" name="update_password" class="btn btn-primary">Update Password</button>
+                    <button type="submit" name="update_password" class="btn btn-primary" id="passwordBtn">Update Password</button>
                 </form>
             </div>
-
-                
+        </div>
+    </div>
 
     <script>
-        // Mobile menu toggle
         const menuToggle = document.createElement('button');
         menuToggle.className = 'menu-toggle';
         menuToggle.innerHTML = '<i class="fas fa-bars"></i>';
@@ -407,10 +479,131 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         menuToggle.addEventListener('click', () => {
             document.body.classList.toggle('show-sidebar');
         });
+
+        const nameInput = document.getElementById('name');
+        const emailInput = document.getElementById('email');
+        const nameValidation = document.getElementById('nameValidation');
+        const emailValidation = document.getElementById('emailValidation');
+        const profileBtn = document.getElementById('profileBtn');
+        
+        const currentPasswordInput = document.getElementById('current_password');
+        const newPasswordInput = document.getElementById('new_password');
+        const confirmPasswordInput = document.getElementById('confirm_password');
+        const currentPasswordValidation = document.getElementById('currentPasswordValidation');
+        const newPasswordValidation = document.getElementById('newPasswordValidation');
+        const confirmPasswordValidation = document.getElementById('confirmPasswordValidation');
+        const passwordBtn = document.getElementById('passwordBtn');
+
+        function validateProfileForm() {
+            let isValid = true;
+            
+            if (nameInput.value.trim() === '') {
+                nameValidation.textContent = 'Name is required';
+                nameValidation.className = 'validation-message error-message';
+                nameInput.classList.add('error');
+                isValid = false;
+            } else {
+                nameValidation.textContent = '';
+                nameInput.classList.remove('error');
+            }
+            
+            if (emailInput.value.trim() === '') {
+                emailValidation.textContent = 'Email is required';
+                emailValidation.className = 'validation-message error-message';
+                emailInput.classList.add('error');
+                isValid = false;
+            } else if (!/^\S+@\S+\.\S+$/.test(emailInput.value.trim())) {
+                emailValidation.textContent = 'Please enter a valid email address';
+                emailValidation.className = 'validation-message error-message';
+                emailInput.classList.add('error');
+                isValid = false;
+            } else {
+                emailValidation.textContent = '';
+                emailInput.classList.remove('error');
+            }
+            
+            const nameOriginal = nameInput.getAttribute('data-original');
+            const emailOriginal = emailInput.getAttribute('data-original');
+            
+            if (nameInput.value.trim() === nameOriginal && emailInput.value.trim() === emailOriginal) {
+                profileBtn.disabled = true;
+                profileBtn.style.opacity = '0.7';
+                profileBtn.style.cursor = 'not-allowed';
+            } else {
+                profileBtn.disabled = false;
+                profileBtn.style.opacity = '1';
+                profileBtn.style.cursor = 'pointer';
+            }
+            
+            return isValid;
+        }
+
+        function validatePasswordForm() {
+            let isValid = true;
+            
+            if (currentPasswordInput.value.trim() === '') {
+                currentPasswordValidation.textContent = 'Current password is required';
+                currentPasswordValidation.className = 'validation-message error-message';
+                currentPasswordInput.classList.add('error');
+                isValid = false;
+            } else {
+                currentPasswordValidation.textContent = '';
+                currentPasswordInput.classList.remove('error');
+            }
+            
+            if (newPasswordInput.value.trim() === '') {
+                newPasswordValidation.textContent = 'New password is required';
+                newPasswordValidation.className = 'validation-message error-message';
+                newPasswordInput.classList.add('error');
+                isValid = false;
+            } else if (newPasswordInput.value.length < 8) {
+                newPasswordValidation.textContent = 'Password must be at least 8 characters long';
+                newPasswordValidation.className = 'validation-message error-message';
+                newPasswordInput.classList.add('error');
+                isValid = false;
+            } else {
+                newPasswordValidation.textContent = '';
+                newPasswordInput.classList.remove('error');
+            }
+            
+            if (confirmPasswordInput.value.trim() === '') {
+                confirmPasswordValidation.textContent = 'Please confirm your new password';
+                confirmPasswordValidation.className = 'validation-message error-message';
+                confirmPasswordInput.classList.add('error');
+                isValid = false;
+            } else if (confirmPasswordInput.value !== newPasswordInput.value) {
+                confirmPasswordValidation.textContent = 'Passwords do not match';
+                confirmPasswordValidation.className = 'validation-message error-message';
+                confirmPasswordInput.classList.add('error');
+                isValid = false;
+            } else {
+                confirmPasswordValidation.textContent = '';
+                confirmPasswordInput.classList.remove('error');
+            }
+            
+            return isValid;
+        }
+
+        nameInput.addEventListener('input', validateProfileForm);
+        emailInput.addEventListener('input', validateProfileForm);
+        
+        currentPasswordInput.addEventListener('input', validatePasswordForm);
+        newPasswordInput.addEventListener('input', validatePasswordForm);
+        confirmPasswordInput.addEventListener('input', validatePasswordForm);
+        
+        document.getElementById('profileForm').addEventListener('submit', function(e) {
+            if (!validateProfileForm()) {
+                e.preventDefault();
+            }
+        });
+        
+        document.getElementById('passwordForm').addEventListener('submit', function(e) {
+            if (!validatePasswordForm()) {
+                e.preventDefault();
+            }
+        });
+        
+        validateProfileForm();
     </script>
 </body>
 </html>
-
-<?php
-$conn->close();
-?>

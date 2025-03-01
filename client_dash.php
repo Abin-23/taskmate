@@ -388,7 +388,7 @@ $user2 = $result2->fetch_assoc();
         </div>
         <ul class="nav-links">
             <li><a href="client_dash.php" class="active"><i class="fas fa-th-large"></i>Dashboard</a></li>
-            <li><a href="#"><i class="fas fa-list"></i>My Projects</a></li>
+            <li><a href="client_project.php"><i class="fas fa-list"></i>My Projects</a></li>
             <li><a href="#"><i class="fas fa-users"></i>Freelancers</a></li>
             <li><a href="profile_client.php"><i class="fas fa-user"></i>Profile</a></li>
             <li><a href="#"><i class="fas fa-wallet"></i>Payments</a></li>
@@ -420,27 +420,27 @@ $user2 = $result2->fetch_assoc();
     <h1 style="color: #1e293b; font-size: 2rem; font-weight: 700;">Welcome back, <?php echo htmlspecialchars($user2['name']); ?>! 👋</h1>
     <p style="color: #64748b; margin-top: 8px;">Here's what's happening with your jobs today.</p>
 </div>
-
-        <div class="quick-actions">
-            <div class="action-card">
-                <div class="action-icon">
-                    <i class="fas fa-plus"></i>
-                </div>
-                <h3>Post New Project</h3>
-            </div>
-            <div class="action-card">
-                <div class="action-icon">
-                    <i class="fas fa-user-plus"></i>
-                </div>
-                <h3>Hire Freelancer</h3>
-            </div>
-            <div class="action-card">
-                <div class="action-icon">
-                    <i class="fas fa-file-invoice"></i>
-                </div>
-                <h3>View Invoices</h3>
-            </div>
+<div class="quick-actions">
+    <a href="add_job.php" class="action-card" style="text-decoration: none; color: inherit;">
+        <div class="action-icon">
+            <i class="fas fa-plus"></i>
         </div>
+        <h3>Post New Project</h3>
+    </a>
+    <!-- other action cards remain the same -->
+    <div class="action-card">
+        <div class="action-icon">
+            <i class="fas fa-user-plus"></i>
+        </div>
+        <h3>Hire Freelancer</h3>
+    </div>
+    <div class="action-card">
+        <div class="action-icon">
+            <i class="fas fa-file-invoice"></i>
+        </div>
+        <h3>View Invoices</h3>
+    </div>
+</div>
 
         <div class="stats-grid">
             <div class="stat-card">
@@ -455,7 +455,7 @@ $user2 = $result2->fetch_assoc();
             </div>
             <div class="stat-card">
                 <h3><i class="fas fa-dollar-sign"></i>Total Spent</h3>
-                <div class="stat-value">$8,450</div>
+                <div class="stat-value">₹8,450</div>
                 <div class="stat-trend">Within budget</div>
             </div>
             <div class="stat-card">
@@ -480,7 +480,7 @@ $user2 = $result2->fetch_assoc();
                         <span class="status-badge status-active">Active</span>
                     </div>
                     <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
-                        <span>Budget: $3,000</span>
+                        <span>Budget: ₹3,000</span>
                         <span>Due: 7 days</span>
                     </div>
                 </div>
@@ -500,7 +500,7 @@ $user2 = $result2->fetch_assoc();
                         <span class="status-badge status-pending">In Review</span>
                     </div>
                     <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
-                        <span>Budget: $5,000</span>
+                        <span>Budget: ₹5,000</span>
                         <span>Due: 14 days</span>
                     </div>
                 </div>
@@ -522,15 +522,15 @@ $user2 = $result2->fetch_assoc();
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
                 <div style="background: #f8fafc; padding: 15px; border-radius: 12px;">
                     <h4>Total Budget</h4>
-                    <p style="font-size: 1.5rem; font-weight: bold; color: var(--primary-color);">$15,000</p>
+                    <p style="font-size: 1.5rem; font-weight: bold; color: var(--primary-color);">₹15,000</p>
                 </div>
                 <div style="background: #f8fafc; padding: 15px; border-radius: 12px;">
                     <h4>Spent</h4>
-                    <p style="font-size: 1.5rem; font-weight: bold; color: #16a34a;">$8,450</p>
+                    <p style="font-size: 1.5rem; font-weight: bold; color: #16a34a;">₹8,450</p>
                 </div>
                 <div style="background: #f8fafc; padding: 15px; border-radius: 12px;">
                     <h4>Remaining</h4>
-                    <p style="font-size: 1.5rem; font-weight: bold; color: #dc2626;">$6,550</p>
+                    <p style="font-size: 1.5rem; font-weight: bold; color: #dc2626;">₹6,550</p>
                 </div>
             </div>
         </div>

@@ -5,52 +5,87 @@ $db = 'taskmate';
 $user = 'root';
 $pass = '';
 
-
 $conn = new mysqli($host, $user, $pass, $db);
 
-// Check connection
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
+
 if (!isset($_SESSION['user_id'])) {
     header("Location: signin.php");
     exit();
 }
 
+// Fetch freelancer profile
 $sql = "SELECT * FROM freelancer_profile WHERE user_id='" . $_SESSION['user_id'] . "'";
 $result = $conn->query($sql);
 
-if ($result && $result->num_rows <1) {
+if ($result && $result->num_rows < 1) {
     header('Location:freelancer_profile.php');    
 }
 
 $user = $result->fetch_assoc();
-$sql2= "SELECT * FROM users WHERE id='" . $_SESSION['user_id'] . "'";
+$sql2 = "SELECT * FROM users WHERE id='" . $_SESSION['user_id'] . "'";
 $result2 = $conn->query($sql2);
 $user2 = $result2->fetch_assoc();
+
+// Get freelancer's skills
+$skills_sql = "SELECT s.skill_name, s.id 
+               FROM skills s 
+               INNER JOIN freelancer_skills fs ON s.id = fs.skill_id 
+               WHERE fs.profile_id = ?";
+$stmt = $conn->prepare($skills_sql);
+$stmt->bind_param("i", $user['profile_id']);
+$stmt->execute();
+$skills_result = $stmt->get_result();
+
+// Create array of freelancer's skill IDs
+$freelancer_skills = array();
+while ($skill = $skills_result->fetch_assoc()) {
+    $freelancer_skills[] = $skill['id'];
+}
+
+// Build the SQL conditions for matching skills
+$skill_conditions = array();
+foreach ($freelancer_skills as $skill_id) {
+    $skill_conditions[] = "FIND_IN_SET('$skill_id', required_skills) > 0";
+}
+
+$jobs_sql = "SELECT DISTINCT j.*, u.name as client_name 
+             FROM jobs j 
+             INNER JOIN users u ON j.client_id = u.id 
+             WHERE j.job_status = 'Open' 
+             AND (" . implode(' OR ', $skill_conditions) . ")
+             ORDER BY j.date_posted DESC";
+$jobs_result = $conn->query($jobs_sql);
+
+// For debugging
+if (!$jobs_result) {
+    die("Query failed: " . $conn->error);
+}
+
+// Rest of your HTML code remains the same, starting from <!DOCTYPE html>
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TaskMate - Freelancer Dashboard</title>
+    <title>TaskMate - Job Feed</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', sans-serif;
+            font-family: 'Inter', system-ui, sans-serif;
         }
 
         :root {
-            --primary-color: #3b82f6;
-            --primary-dark: #2563eb;
-            --sidebar-width: 280px;
+            --primary: #3b82f6;
+            --sidebar-width: 250px;
             --header-height: 70px;
-            --gradient-start: #3b82f6;
-            --gradient-end: #60a5fa;
         }
 
         body {
@@ -58,18 +93,6 @@ $user2 = $result2->fetch_assoc();
             min-height: 100vh;
         }
 
-        /* Animations */
-        @keyframes slideIn {
-            from { transform: translateX(-100%); }
-            to { transform: translateX(0); }
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        /* Sidebar Styles */
         .sidebar {
             position: fixed;
             left: 0;
@@ -77,32 +100,26 @@ $user2 = $result2->fetch_assoc();
             width: var(--sidebar-width);
             height: 100vh;
             background: white;
-            padding: 25px;
+            padding: 20px;
             box-shadow: 0 0 20px rgba(0,0,0,0.05);
-            animation: slideIn 0.5s ease;
             z-index: 1000;
         }
 
         .logo {
             display: flex;
             align-items: center;
-            padding-bottom: 25px;
-            border-bottom: 2px solid #f1f5f9;
-            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 20px;
+        }
+
+        .logo span {
+            font-size: 24px;
+            font-weight: 700;
         }
 
         .logo span:first-child {
-            font-size: 24px;
-            background: linear-gradient(to right, var(--gradient-start), var(--gradient-end));
-            -webkit-background-clip: text;
-            color: transparent;
-            font-weight: 700;
-        }
-
-        .logo span:last-child {
-            font-size: 24px;
-            color: #1e293b;
-            font-weight: 700;
+            color: var(--primary);
         }
 
         .nav-links {
@@ -110,7 +127,7 @@ $user2 = $result2->fetch_assoc();
         }
 
         .nav-links li {
-            margin-bottom: 8px;
+            margin-bottom: 5px;
         }
 
         .nav-links a {
@@ -119,95 +136,55 @@ $user2 = $result2->fetch_assoc();
             padding: 12px 15px;
             color: #64748b;
             text-decoration: none;
-            border-radius: 12px;
+            border-radius: 8px;
             transition: all 0.3s ease;
             font-weight: 500;
         }
 
         .nav-links a:hover {
-            background: #f8fafc;
-            color: var(--primary-color);
-            transform: translateX(5px);
+            background: #f1f5f9;
+            color: var(--primary);
         }
 
         .nav-links a.active {
-            background: linear-gradient(to right, var(--gradient-start), var(--gradient-end));
+            background: var(--primary);
             color: white;
         }
 
         .nav-links a i {
             margin-right: 12px;
             width: 20px;
-            font-size: 1.2em;
         }
 
-        /* Main Content */
         .main-content {
             margin-left: var(--sidebar-width);
-            padding: 30px;
-            animation: fadeIn 0.5s ease;
+            padding: 20px;
         }
 
-        /* Header */
         .header {
+            background: white;
+            padding: 15px 25px;
+            border-radius: 12px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 20px;
-            background: white;
-            border-radius: 16px;
             margin-bottom: 30px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
 
         .search-bar {
             flex: 1;
-            margin: 0 30px;
+            max-width: 500px;
+            margin: 0 20px;
             position: relative;
         }
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .logout-btn {
-            padding: 8px 16px;
-            background: linear-gradient(to right, var(--gradient-start), var(--gradient-end));
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.3s ease;
-        }
-
-        .logout-btn:hover {
-            background: linear-gradient(to right, var(--primary-dark), var(--gradient-start));
-            transform: translateY(-2px);
-        }
-
-        .logout-btn i {
-            font-size: 0.9em;
-        }
-
 
         .search-bar input {
             width: 100%;
-            padding: 12px 20px 12px 45px;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
+            padding: 10px 20px 10px 40px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
             font-size: 15px;
-            transition: all 0.3s ease;
-        }
-
-        .search-bar input:focus {
-            border-color: var(--primary-color);
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
         .search-bar i {
@@ -216,173 +193,210 @@ $user2 = $result2->fetch_assoc();
             top: 50%;
             transform: translateY(-50%);
             color: #94a3b8;
-            font-size: 1.2em;
         }
 
         .user-info {
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 15px;
         }
 
         .notification {
             position: relative;
-            cursor: pointer;
             padding: 8px;
-            border-radius: 50%;
-            transition: all 0.3s ease;
-        }
-
-        .notification:hover {
-            background: #f1f5f9;
-        }
-
-        .notification i {
-            font-size: 1.2em;
-            color: #64748b;
+            cursor: pointer;
         }
 
         .notification-dot {
             position: absolute;
-            top: 6px;
-            right: 6px;
+            top: 5px;
+            right: 5px;
             width: 8px;
             height: 8px;
             background: #ef4444;
             border-radius: 50%;
-            border: 2px solid white;
         }
 
-        /* Stats Grid */
-        .stats-grid {
+        /* Grid Layout Styles */
+        .job-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 25px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(1, 1fr);
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
         }
 
-        .stat-card {
+        @media (min-width: 768px) {
+            .job-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .job-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .job-card {
             background: white;
-            padding: 25px;
-            border-radius: 16px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .stat-card h3 {
-            color: #64748b;
-            font-size: 1rem;
-            margin-bottom: 15px;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            height: 100%;
             display: flex;
-            align-items: center;
-            gap: 10px;
+            flex-direction: column;
         }
 
-        .stat-card h3 i {
-            color: var(--primary-color);
+        .job-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
 
-        .stat-value {
-            font-size: 2rem;
-            font-weight: 700;
+        .job-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .job-title {
+            font-size: 18px;
+            font-weight: 600;
             color: #1e293b;
             margin-bottom: 5px;
         }
 
-        .stat-trend {
-            font-size: 0.875rem;
-            color: #22c55e;
-        }
-
-        /* Recent Jobs */
-        .recent-jobs {
-            background: white;
-            padding: 25px;
-            border-radius: 16px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-
-        .recent-jobs h2 {
-            margin-bottom: 20px;
-            color: #1e293b;
-            font-size: 1.5rem;
-        }
-
-        .jobs-table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0 10px;
-        }
-
-        .jobs-table th {
-            padding: 15px;
-            text-align: left;
+        .client-name {
             color: #64748b;
+            font-size: 14px;
+        }
+
+        .job-budget {
+            background: #f0f9ff;
+            color: var(--primary);
+            padding: 8px 16px;
+            border-radius: 6px;
             font-weight: 600;
-            border-bottom: 2px solid #f1f5f9;
         }
 
-        .jobs-table td {
-            padding: 15px;
-            background: #f8fafc;
-            border-top: 1px solid #f1f5f9;
-            border-bottom: 1px solid #f1f5f9;
+        .job-meta {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+            color: #64748b;
+            font-size: 14px;
+            flex-wrap: wrap;
         }
 
-        .jobs-table tr td:first-child {
-            border-top-left-radius: 12px;
-            border-bottom-left-radius: 12px;
-            border-left: 1px solid #f1f5f9;
-        }
-
-        .jobs-table tr td:last-child {
-            border-top-right-radius: 12px;
-            border-bottom-right-radius: 12px;
-            border-right: 1px solid #f1f5f9;
-        }
-
-        .status-badge {
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-size: 0.875rem;
-            font-weight: 500;
-            display: inline-flex;
+        .job-meta div {
+            display: flex;
             align-items: center;
             gap: 5px;
         }
 
-        .status-active {
-            background: #dcfce7;
-            color: #166534;
+        .job-description {
+            color: #475569;
+            line-height: 1.6;
+            margin-bottom: 15px;
         }
 
-        .status-review {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        .project-cell {
+        .job-tags {
             display: flex;
-            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .tag {
+            background: #f1f5f9;
+            color: #475569;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .job-actions {
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
             gap: 10px;
         }
 
-        .project-icon {
-            width: 40px;
-            height: 40px;
-            background: #f1f5f9;
-            border-radius: 8px;
-            display: flex;
+        .apply-btn {
+            background: var(--primary);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            color: var(--primary-color);
+            gap: 8px;
+            transition: all 0.3s ease;
         }
 
-        /* Responsive Design */
+        .apply-btn:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+
+        .view-details-btn {
+            background: #f1f5f9;
+            color: #3b82f6;
+            padding: 8px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .view-details-btn:hover {
+            background: #e2e8f0;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1001;
+        }
+
+        .modal-content {
+            position: relative;
+            background-color: white;
+            margin: 50px auto;
+            padding: 25px;
+            width: 90%;
+            max-width: 800px;
+            border-radius: 12px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .close-modal {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #64748b;
+        }
+
         @media (max-width: 1024px) {
             .sidebar {
                 transform: translateX(-100%);
@@ -396,10 +410,6 @@ $user2 = $result2->fetch_assoc();
             .show-sidebar .sidebar {
                 transform: translateX(0);
             }
-
-            .stats-grid {
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            }
         }
 
         @media (max-width: 768px) {
@@ -409,13 +419,13 @@ $user2 = $result2->fetch_assoc();
             }
 
             .search-bar {
-                margin: 15px 0;
                 width: 100%;
+                max-width: none;
+                margin: 15px 0;
             }
 
-            .jobs-table {
-                display: block;
-                overflow-x: auto;
+            .job-meta {
+                gap: 10px;
             }
         }
     </style>
@@ -448,132 +458,78 @@ $user2 = $result2->fetch_assoc();
                     <i class="fas fa-bell"></i>
                     <div class="notification-dot"></div>
                 </div>
-                <img src="<?php echo $user['profile_picture'];?>" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <a href="logout.php" class="logout-btn">
+                <img src="<?php echo $user['profile_picture']; ?>" alt="Profile" style="width: 35px; height: 35px; border-radius: 50%;">
+                <a href="logout.php" style="text-decoration: none; color: #64748b;">
                     <i class="fas fa-sign-out-alt"></i>
-                    Logout
                 </a>
             </div>
         </div>
-        <div style="margin-bottom: 30px;">
-    <h1 style="color: #1e293b; font-size: 2rem; font-weight: 700;">Welcome back, <?php echo htmlspecialchars($user2['name']); ?>! 👋</h1>
-    <p style="color: #64748b; margin-top: 8px;">Here's what's happening with your projects today.</p>
-</div>
 
-        <div class="stats-grid">
-            <div class="stat-card">
-                <h3><i class="fas fa-briefcase"></i>Active Jobs</h3>
-                <div class="stat-value">3</div>
-                <div class="stat-trend">↑ 2 this week</div>
-            </div>
-            <div class="stat-card">
-                <h3><i class="fas fa-check-circle"></i>Completed Jobs</h3>
-                <div class="stat-value">47</div>
-                <div class="stat-trend">↑ 12% this month</div>
-            </div>
-            <div class="stat-card">
-                <h3><i class="fas fa-dollar-sign"></i>Total Earnings</h3>
-                <div class="stat-value">$2,845</div>
-                <div class="stat-trend">↑ $540 vs last month</div>
-            </div>
-            <div class="stat-card">
-                <h3><i class="fas fa-star"></i>Rating</h3>
-                <div class="stat-value">4.9/5</div>
-                <div class="stat-trend">Based on 38 reviews</div>
-            </div>
+        <div class="job-grid">
+            <?php if ($jobs_result->num_rows > 0): ?>
+                <?php while($job = $jobs_result->fetch_assoc()): ?>
+                    <div class="job-card">
+                        <div class="job-header">
+                            <div>
+                                <div class="job-title"><?php echo htmlspecialchars($job['job_title']); ?></div>
+                                <div class="client-name"><?php echo htmlspecialchars($job['client_name']); ?></div>
+                            </div>
+                            <div class="job-budget">₹<?php echo number_format($job['budget'], 2); ?></div>
+                        </div>
+                        
+                        <div class="job-meta">
+                            <div><i class="fas fa-folder"></i> <?php echo htmlspecialchars($job['task_category']); ?></div>
+                            <div><i class="fas fa-calendar"></i> Due: <?php echo date('M d, Y', strtotime($job['deadline'])); ?></div>
+                        </div>
+                        
+                        <div class="job-description">
+                            <?php echo nl2br(htmlspecialchars(substr($job['job_description'], 0, 100))); ?>...
+                        </div>
+                        
+                        <?php if (!empty($job['tools_software'])): ?>
+                            <div class="job-tags">
+                                <?php 
+                                $tools = explode(',', $job['tools_software']);
+                                foreach(array_slice($tools, 0, 3) as $tool): 
+                                    if(trim($tool)):
+                                ?>
+                                    <span class="tag"><?php echo htmlspecialchars(trim($tool)); ?></span>
+                                <?php 
+                                    endif;
+                                endforeach; 
+                                ?>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <div class="job-actions">
+                            <button class="view-details-btn" onclick="showJobDetails(<?php echo htmlspecialchars(json_encode($job)); ?>)">
+                                <i class="fas fa-eye"></i> View Details
+                            </button>
+                            <a href="job_details.php?id=<?php echo $job['job_id']; ?>" class="apply-btn">
+                                <i class="fas fa-paper-plane"></i> Apply Now
+                            </a>
+                        </div>
+                    </div>
+                    <?php endwhile; ?>
+            <?php else: ?>
+                <div style="text-align: center; padding: 40px; background: white; border-radius: 12px; grid-column: 1 / -1;">
+                    <i class="fas fa-briefcase" style="font-size: 48px; color: #cbd5e1; margin-bottom: 20px;"></i>
+                    <p style="color: #64748b;">No jobs available at the moment. Check back later!</p>
+                </div>
+            <?php endif; ?>
         </div>
 
-        <div class="recent-jobs">
-            <h2>Recent Jobs</h2>
-            <table class="jobs-table">
-                <thead>
-                    <tr>
-                        <th>Project</th>
-                        <th>Client</th>
-                        <th>Status</th>
-                        <th>Payment</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>
-                            <div class="project-cell">
-                                <div class="project-icon">
-                                    <i class="fas fa-laptop-code"></i>
-                                </div>
-                                <div>
-                                    <div style="font-weight: 500; color: #1e293b;">Website Redesign</div>
-                                    <div style="font-size: 0.875rem; color: #64748b;">Due in 5 days</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>Tech Corp</td>
-                        <td><span class="status-badge status-active"><i class="fas fa-circle"></i>Active</span></td>
-                        <td style="font-weight: 500;">$500</td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <div class="project-cell">
-                                <div class="project-icon">
-                                    <i class="fas fa-paint-brush"></i>
-                                </div>
-                                <div>
-                                    <div style="font-weight: 500; color: #1e293b;">Logo Design</div>
-                                    <div style="font-size: 0.875rem; color: #64748b;">Due in 2 days</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>StartUp Inc</td>
-                        <td><span class="status-badge status-review"><i class="fas fa-clock"></i>Review</span></td>
-                        <td style="font-weight: 500;">$200</td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <div class="project-cell">
-                                <div class="project-icon">
-                                    <i class="fas fa-mobile-alt"></i>
-                                    </div>
-                                <div>
-                                    <div style="font-weight: 500; color: #1e293b;">Mobile App UI</div>
-                                    <div style="font-size: 0.875rem; color: #64748b;">Due in 7 days</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>App Labs</td>
-                        <td><span class="status-badge status-active"><i class="fas fa-circle"></i>Active</span></td>
-                        <td style="font-weight: 500;">$800</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Activity Timeline -->
-        <div class="recent-jobs" style="margin-top: 30px;">
-            <h2>Recent Activity</h2>
-            <div class="timeline" style="position: relative; padding: 20px 0;">
-                <div class="timeline-item" style="display: flex; gap: 15px; margin-bottom: 20px;">
-                    <div style="width: 40px; height: 40px; background: #bfdbfe; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--primary-color);">
-                        <i class="fas fa-comment"></i>
-                    </div>
-                    <div>
-                        <div style="font-weight: 500; color: #1e293b;">New Message from Tech Corp</div>
-                        <div style="font-size: 0.875rem; color: #64748b;">2 hours ago</div>
-                    </div>
-                </div>
-                <div class="timeline-item" style="display: flex; gap: 15px; margin-bottom: 20px;">
-                    <div style="width: 40px; height: 40px; background: #bbf7d0; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #166534;">
-                        <i class="fas fa-dollar-sign"></i>
-                    </div>
-                    <div>
-                        <div style="font-weight: 500; color: #1e293b;">Payment Received</div>
-                        <div style="font-size: 0.875rem; color: #64748b;">$350 from StartUp Inc</div>
-                    </div>
-                </div>
+        <!-- Modal for job details -->
+        <div id="jobModal" class="modal">
+            <div class="modal-content">
+                <span class="close-modal" onclick="closeModal()">&times;</span>
+                <div id="modalContent"></div>
             </div>
         </div>
     </div>
 
     <script>
+        // Menu toggle functionality
         const menuToggle = document.querySelector('.menu-toggle');
         const body = document.body;
 
@@ -581,28 +537,101 @@ $user2 = $result2->fetch_assoc();
             body.classList.toggle('show-sidebar');
         });
 
-        // Hover effects for table rows
-        document.querySelectorAll('.jobs-table tbody tr').forEach(row => {
-            row.addEventListener('mouseover', () => {
-                row.style.transform = 'translateY(-2px)';
-                row.style.transition = 'all 0.3s ease';
-                row.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
-            });
+        // Search functionality
+        const searchInput = document.querySelector('.search-bar input');
+        const jobCards = document.querySelectorAll('.job-card');
 
-            row.addEventListener('mouseout', () => {
-                row.style.transform = 'none';
-                row.style.boxShadow = 'none';
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            
+            jobCards.forEach(card => {
+                const title = card.querySelector('.job-title').textContent.toLowerCase();
+                const description = card.querySelector('.job-description').textContent.toLowerCase();
+                const category = card.querySelector('.job-meta').textContent.toLowerCase();
+                
+                if (title.includes(searchTerm) || 
+                    description.includes(searchTerm) || 
+                    category.includes(searchTerm)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
             });
         });
 
-        // Add smooth scrolling
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                document.querySelector(this.getAttribute('href')).scrollIntoView({
-                    behavior: 'smooth'
-                });
-            });
+        // Job details modal functionality
+        function showJobDetails(job) {
+            const modal = document.getElementById('jobModal');
+            const modalContent = document.getElementById('modalContent');
+            
+            const content = `
+                <h2 class="job-title" style="font-size: 24px; margin-bottom: 10px;">${job.job_title}</h2>
+                <div class="client-name" style="margin-bottom: 20px; color: #64748b;">Posted by ${job.client_name}</div>
+                
+                <div class="job-budget" style="margin-bottom: 20px; font-size: 20px; display: inline-block;">
+                    Budget: $${parseFloat(job.budget).toFixed(2)}
+                </div>
+                
+                <div class="job-meta" style="margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div><i class="fas fa-folder"></i> ${job.task_category}</div>
+                    <div><i class="fas fa-calendar"></i> Due: ${new Date(job.deadline).toLocaleDateString()}</div>
+                    <div><i class="fas fa-clock"></i> Posted: ${new Date(job.date_posted).toLocaleDateString()}</div>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <h3 style="margin-bottom: 10px; color: #1e293b;">Job Description</h3>
+                    <div class="job-description" style="line-height: 1.6; color: #475569;">
+                        ${job.job_description}
+                    </div>
+                </div>
+                
+                ${job.tools_software ? `
+                    <div style="margin-bottom: 30px;">
+                        <h3 style="margin-bottom: 10px; color: #1e293b;">Required Tools & Software</h3>
+                        <div class="job-tags" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            ${job.tools_software.split(',').map(tool => `
+                                <span class="tag">${tool.trim()}</span>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+                
+                <div style="display: flex; justify-content: flex-end; gap: 15px;">
+                    <button onclick="closeModal()" style="padding: 10px 20px; border-radius: 6px; border: 1px solid #e2e8f0; background: white; cursor: pointer;">
+                        Close
+                    </button>
+                    <a href="job_details.php?id=${job.job_id}" class="apply-btn" style="padding: 10px 25px;">
+                        <i class="fas fa-paper-plane"></i> Apply Now
+                    </a>
+                </div>
+            `;
+            
+            modalContent.innerHTML = content;
+            modal.style.display = 'block';
+            
+            // Prevent body scrolling when modal is open
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('jobModal');
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('jobModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
         });
     </script>
 </body>

@@ -213,7 +213,31 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             text-align: center;
             font-weight: 500;
         }
+        .back-button {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #64748b;
+    text-decoration: none;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+}
 
+.back-button:hover {
+    transform: translateX(-3px);
+    color: #2563eb;
+    border-color: #2563eb;
+    box-shadow: 0 6px 12px rgba(37, 99, 235, 0.1);
+}
+        
         @keyframes slideUp {
             from {
                 opacity: 0;
@@ -231,6 +255,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <div class="logo">
             <span class="task">Task</span><span class="mate">Mate</span>
         </div>
+        <a href="home.html" class="back-button">
+    <i class="fas fa-arrow-left"></i>
+</a>
         <h2>Welcome Back!</h2>
         <?php if (!empty($error_message)): ?>
             <div class="error-message">
