@@ -44,13 +44,17 @@ $job = $jobCheckResult->fetch_assoc();
 if (isset($_POST['update_status'])) {
     $application_id = $_POST['application_id'];
     $new_status = $_POST['status'];
+    $freelancer_id=$_POST['freelancer_id'];
     
     $updateQuery = "UPDATE applications SET application_status = '$new_status' WHERE application_id = '$application_id'";
     
     if ($conn->query($updateQuery)) {
         if ($new_status == 'Accepted') {
-            $updateJobQuery = "UPDATE jobs SET job_status = 'In Progress' WHERE job_id = '$job_id'";
-            $conn->query($updateJobQuery);
+            $updateJobQuery = "UPDATE jobs 
+            SET job_status = 'In Progress', 
+                freelancer_id = '$freelancer_id' 
+            WHERE job_id = '$job_id'";
+     $conn->query($updateJobQuery);
             
             $rejectOthersQuery = "UPDATE applications SET application_status = 'Rejected' WHERE job_id = '$job_id' AND application_id != '$application_id'";
             $conn->query($rejectOthersQuery);
@@ -62,7 +66,7 @@ if (isset($_POST['update_status'])) {
     }
 }
 
-$applicationsQuery = "SELECT a.*, u.name, u.email, fp.experience, fp.bio, fp.profile_picture, fp.portfolio_link 
+$applicationsQuery = "SELECT a.*, u.name, u.email,u.id, fp.experience, fp.bio, fp.profile_picture, fp.portfolio_link 
                       FROM applications a 
                       JOIN users u ON a.freelancer_id = u.id 
                       JOIN freelancer_profile fp ON u.id = fp.user_id 
@@ -549,19 +553,19 @@ $user = $userResult->fetch_assoc();
     </style>
 </head>
 <body>
-    <div class="sidebar">
-        <div class="logo">
-            <span>Task</span><span>Mate</span>
-        </div>
-        <ul class="nav-links">
-            <li><a href="client_dash.php"><i class="fas fa-th-large"></i>Dashboard</a></li>
-            <li><a href="my_projects.php" class="active"><i class="fas fa-list"></i>My Projects</a></li>
-            <li><a href="#"><i class="fas fa-users"></i>Freelancers</a></li>
-            <li><a href="profile_client.php"><i class="fas fa-user"></i>Profile</a></li>
-            <li><a href="#"><i class="fas fa-wallet"></i>Payments</a></li>
-            <li><a href="client_settings.php"><i class="fas fa-gear"></i>Settings</a></li>
-        </ul>
+<div class="sidebar">
+    <div class="logo">
+        <span>Task</span><span>Mate</span>
     </div>
+    <ul class="nav-links"> <!-- FIX: Wrap list items inside a UL -->
+        <li><a href="client_dash.php"><i class="fas fa-th-large"></i>Dashboard</a></li>
+        <li><a href="client_project.php" class="active"><i class="fas fa-list"></i>My Projects</a></li>
+        <li><a href="profile_client.php"><i class="fas fa-user"></i>Profile</a></li>
+        <li><a href="payments.php"><i class="fas fa-wallet"></i>Payments</a></li>
+        <li><a href="client_settings.php"><i class="fas fa-gear"></i>Settings</a></li>
+    </ul>
+</div>
+
 
     <div class="main-content">
         <div class="header">
@@ -580,7 +584,7 @@ $user = $userResult->fetch_assoc();
             </div>
         </div>
 
-        <a href="my_projects.php" class="btn-back">
+        <a href="client_project.php" class="btn-back">
             <i class="fas fa-arrow-left"></i>
             Back to Projects
         </a>
@@ -642,7 +646,9 @@ $user = $userResult->fetch_assoc();
                                 <?php if ($job['job_status'] !== 'In Progress' && $job['job_status'] !== 'Completed' && $application['application_status'] === 'Pending'): ?>
                                 <div class="action-buttons">
                                     <form method="post">
-                                    <input type="hidden" name="application_id" value="<?php echo $application['application_id']; ?>">                                        <input type="hidden" name="status" value="Accepted">
+                                    <input type="hidden" name="application_id" value="<?php echo $application['application_id']; ?>"> 
+                                    <input type="hidden" name="status" value="Accepted">
+                                    <input type="hidden" name="freelancer_id" value="<?php echo $application['freelancer_id'];?>">
                                         <button type="submit" name="update_status" class="btn btn-accept">
                                             <i class="fas fa-check"></i>
                                             Accept Application
@@ -658,10 +664,10 @@ $user = $userResult->fetch_assoc();
                                         </button>
                                     </form>
                                     
-                                    <a href="#" class="btn btn-view">
-                                        <i class="fas fa-eye"></i>
-                                        View Full Profile
-                                    </a>
+                                    <a href="view_freelancer.php<?php echo '?id=' . $application['id']; ?>" class="btn btn-view">
+                               <i class="fas fa-eye"></i>
+                               View Full Profile
+                              </a>
                                 </div>
                                 <?php elseif ($application['application_status'] === 'Accepted'): ?>
                                 <div class="alert alert-success" style="margin-top: 15px;">

@@ -16,11 +16,9 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Get job ID from URL
 $job_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
-// Check if job exists and get details
-$job_sql = "SELECT j.*, u.name as client_name, cp.company_name, cp.profile_picture as company_logo 
+$job_sql = "SELECT j.*, u.name as client_name, cp.company_name,u.id, cp.profile_picture as company_logo 
             FROM jobs j 
             INNER JOIN users u ON j.client_id = u.id 
             LEFT JOIN client_profile cp ON u.id = cp.id 
@@ -117,13 +115,33 @@ while ($skill = $skills_result->fetch_assoc()) {
             color: #1e293b;
         }
 
-        .client-info {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
 
+    .profile-form {
+    margin: 0;
+    padding: 0;
+    display: inline;
+}
+
+.view-profile-button {
+    background: #3b82f6;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    border: none; 
+    cursor: pointer; 
+}
+
+.view-profile-button:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+}
         .company-logo {
             width: 50px;
             height: 50px;
@@ -270,17 +288,23 @@ while ($skill = $skills_result->fetch_assoc()) {
 
         <div class="job-header">
             <h1 class="job-title"><?php echo htmlspecialchars($job['job_title']); ?></h1>
-            
-            <div class="client-info">
-                <img src="<?php echo htmlspecialchars($job['company_logo'] ?? 'default-company-logo.png'); ?>" 
-                     alt="Company Logo" 
-                     class="company-logo">
-                <div class="client-details">
-                    <h3><?php echo htmlspecialchars($job['company_name'] ?? $job['client_name']); ?></h3>
-                    <p>Posted by <?php echo htmlspecialchars($job['client_name']); ?></p>
-                </div>
-            </div>
-
+            <!-- In job_details.php, update the client-info section -->
+<div class="client-info">
+    <img src="<?php echo htmlspecialchars($job['company_logo'] ?? 'default-company-logo.png'); ?>" 
+         alt="Company Logo" 
+         class="company-logo">
+    <div class="client-details">
+        <h3><?php echo htmlspecialchars($job['company_name'] ?? $job['client_name']); ?></h3>
+        <p>Posted by <?php echo htmlspecialchars($job['client_name']); ?></p>
+    </div>
+    <form action="view_client_profile.php" method="POST" class="profile-form">
+        <input type="hidden" name="client_id" value="<?php echo htmlspecialchars($job['client_id']); ?>">
+        <input type="hidden" name="job_id" value="<?php echo htmlspecialchars($job_id); ?>">
+        <button type="submit" class="view-profile-button">
+            <i class="fas fa-user"></i> View Profile
+        </button>
+    </form>
+</div>
             <div class="job-meta">
                 <div class="meta-item">
                     <i class="fas fa-money-bill"></i>

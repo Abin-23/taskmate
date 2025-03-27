@@ -39,6 +39,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     header('Location:client_dash.php');
                     }
                 elseif($user['role'] == "admin"){
+                    $_SESSION['role']=$user['role'];
                     $_SESSION['user_id'] = $user['id'];
                     header('Location:admindash.php');
                 }

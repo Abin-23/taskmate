@@ -448,7 +448,7 @@ $conn->close();
             <li><a href="admindash.php" class="active"><i class="fas fa-th-large"></i>Dashboard</a></li>
             <li><a href="admin_freelancer.php"><i class="fas fa-users"></i>Freelancers</a></li>
             <li><a href="admin_client.php"><i class="fas fa-user-tie"></i>Clients</a></li>
-            <li><a href="#"><i class="fas fa-briefcase"></i>Jobs</a></li>
+            <li><a href="jobs.php"><i class="fas fa-briefcase"></i>Jobs</a></li>
             <li><a href="admin_settings.php"><i class="fas fa-cog"></i>Settings</a></li>
         </ul>
     </div>

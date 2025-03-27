@@ -16,7 +16,7 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Fetch freelancer profile
+
 $sql = "SELECT * FROM freelancer_profile WHERE user_id='" . $_SESSION['user_id'] . "'";
 $result = $conn->query($sql);
 
@@ -437,9 +437,9 @@ if (!$jobs_result) {
         </div>
         <ul class="nav-links">
             <li><a href="freelancer_dash.php" class="active"><i class="fas fa-th-large"></i>Dashboard</a></li>
-            <li><a href="#"><i class="fas fa-briefcase"></i>My Jobs</a></li>
+            <li><a href="freelancer_job.php"><i class="fas fa-briefcase"></i>My Jobs</a></li>
             <li><a href="profile_freelancer.php"><i class="fas fa-user"></i>Profile</a></li>
-            <li><a href="#"><i class="fas fa-wallet"></i>Earnings</a></li>
+            <li><a href="earnings.php"><i class="fas fa-wallet"></i>Earnings</a></li>
             <li><a href="freelancer_settings.php"><i class="fas fa-gear"></i>Settings</a></li>
         </ul>
     </div>
@@ -502,13 +502,15 @@ if (!$jobs_result) {
                         <?php endif; ?>
                         
                         <div class="job-actions">
-                            <button class="view-details-btn" onclick="showJobDetails(<?php echo htmlspecialchars(json_encode($job)); ?>)">
+                  <button class="view-details-btn" onclick="showJobDetails(<?php echo htmlspecialchars(json_encode($job)); ?>)">
                                 <i class="fas fa-eye"></i> View Details
                             </button>
                             <a href="job_details.php?id=<?php echo $job['job_id']; ?>" class="apply-btn">
                                 <i class="fas fa-paper-plane"></i> Apply Now
                             </a>
                         </div>
+                    </div>
+
                     </div>
                     <?php endwhile; ?>
             <?php else: ?>

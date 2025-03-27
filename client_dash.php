@@ -5,28 +5,64 @@ $db = 'taskmate';
 $user = 'root';
 $pass = '';
 
-
 $conn = new mysqli($host, $user, $pass, $db);
 
 // Check connection
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
+
 if (!isset($_SESSION['user_id'])) {
     header("Location: signin.php");
     exit();
 }
 
-$sql = "SELECT * FROM client_profile WHERE id='" . $_SESSION['user_id'] . "'";
-$result = $conn->query($sql);
+$sql_client_profile = "SELECT * FROM client_profile WHERE id=?";
+$stmt_client_profile = $conn->prepare($sql_client_profile);
+$stmt_client_profile->bind_param("i", $_SESSION['user_id']);
+$stmt_client_profile->execute();
+$result_client_profile = $stmt_client_profile->get_result();
 
-if ($result && $result->num_rows <1) {
-    header('Location:client_profile.php');    
+if ($result_client_profile->num_rows < 1) {
+    header('Location: client_profile.php');    
+    exit();
 }
-$user = $result->fetch_assoc();
-$sql2 = "SELECT * FROM users WHERE id='" . $_SESSION['user_id'] . "'";
-$result2 = $conn->query($sql2);
-$user2 = $result2->fetch_assoc();
+$client_profile = $result_client_profile->fetch_assoc();
+
+$sql_user = "SELECT * FROM users WHERE id=?";
+$stmt_user = $conn->prepare($sql_user);
+$stmt_user->bind_param("i", $_SESSION['user_id']);
+$stmt_user->execute();
+$result_user = $stmt_user->get_result();
+$user = $result_user->fetch_assoc();
+
+$sql_active_projects = "SELECT * FROM jobs WHERE client_id=? AND job_status IN ('Open', 'In Progress')";
+$stmt_active_projects = $conn->prepare($sql_active_projects);
+$stmt_active_projects->bind_param("i", $_SESSION['user_id']);
+$stmt_active_projects->execute();
+$result_active_projects = $stmt_active_projects->get_result();
+$active_projects_count = $result_active_projects->num_rows;
+
+$sql_completed_projects = "SELECT * FROM jobs WHERE client_id=? AND job_status = 'Completed'";
+$stmt_completed_projects = $conn->prepare($sql_completed_projects);
+$stmt_completed_projects->bind_param("i", $_SESSION['user_id']);
+$stmt_completed_projects->execute();
+$result_completed_projects = $stmt_completed_projects->get_result();
+$completed_projects_count = $result_completed_projects->num_rows;
+
+// Fetch total spent
+$sql_total_spent = "SELECT SUM(amount) as total_spent FROM jobs_payments WHERE client_id=?";
+$stmt_total_spent = $conn->prepare($sql_total_spent);
+$stmt_total_spent->bind_param("i", $_SESSION['user_id']);
+$stmt_total_spent->execute();
+$result_total_spent = $stmt_total_spent->get_result();
+$total_spent = $result_total_spent->fetch_assoc()['total_spent'] ?? 0;
+
+$sql_recent_projects = "SELECT * FROM jobs WHERE client_id=? ORDER BY date_posted DESC LIMIT 2";
+$stmt_recent_projects = $conn->prepare($sql_recent_projects);
+$stmt_recent_projects->bind_param("i", $_SESSION['user_id']);
+$stmt_recent_projects->execute();
+$result_recent_projects = $stmt_recent_projects->get_result();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -36,7 +72,7 @@ $user2 = $result2->fetch_assoc();
     <title>TaskMate - Client Dashboard</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        * {
+    * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
@@ -56,7 +92,6 @@ $user2 = $result2->fetch_assoc();
             min-height: 100vh;
         }
 
-        /* Animation Keyframes */
         @keyframes slideIn {
             from { transform: translateX(-100%); }
             to { transform: translateX(0); }
@@ -379,7 +414,7 @@ $user2 = $result2->fetch_assoc();
                 grid-template-columns: 1fr;
             }
         }
-    </style>
+</style>
 </head>
 <body>
     <div class="sidebar">
@@ -389,9 +424,8 @@ $user2 = $result2->fetch_assoc();
         <ul class="nav-links">
             <li><a href="client_dash.php" class="active"><i class="fas fa-th-large"></i>Dashboard</a></li>
             <li><a href="client_project.php"><i class="fas fa-list"></i>My Projects</a></li>
-            <li><a href="#"><i class="fas fa-users"></i>Freelancers</a></li>
             <li><a href="profile_client.php"><i class="fas fa-user"></i>Profile</a></li>
-            <li><a href="#"><i class="fas fa-wallet"></i>Payments</a></li>
+            <li><a href="payments.php"><i class="fas fa-wallet"></i>Payments</a></li>
             <li><a href="client_settings.php"><i class="fas fa-gear"></i>Settings</a></li>
         </ul>
     </div>
@@ -409,172 +443,99 @@ $user2 = $result2->fetch_assoc();
                     <i class="fas fa-bell"></i>
                     <div class="notification-dot"></div>
                 </div>  
-             <img src="<?php echo $user['profile_picture']?>" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-             <a href="logout.php" class="logout-btn">
+                <img src="<?php echo htmlspecialchars($client_profile['profile_picture'] ?? '/api/placeholder/40/40'); ?>" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <a href="logout.php" class="logout-btn">
                     <i class="fas fa-sign-out-alt"></i>
                     Logout
                 </a>
             </div>
         </div>
         <div style="margin-bottom: 30px;">
-    <h1 style="color: #1e293b; font-size: 2rem; font-weight: 700;">Welcome back, <?php echo htmlspecialchars($user2['name']); ?>! 👋</h1>
-    <p style="color: #64748b; margin-top: 8px;">Here's what's happening with your jobs today.</p>
-</div>
-<div class="quick-actions">
-    <a href="add_job.php" class="action-card" style="text-decoration: none; color: inherit;">
-        <div class="action-icon">
-            <i class="fas fa-plus"></i>
+            <h1 style="color: #1e293b; font-size: 2rem; font-weight: 700;">Welcome back, <?php echo htmlspecialchars($user['name']); ?>! 👋</h1>
+            <p style="color: #64748b; margin-top: 8px;">Here's what's happening with your jobs today.</p>
         </div>
-        <h3>Post New Project</h3>
-    </a>
-    <!-- other action cards remain the same -->
-    <div class="action-card">
-        <div class="action-icon">
-            <i class="fas fa-user-plus"></i>
+        <div class="quick-actions">
+            <a href="add_job.php" class="action-card" style="text-decoration: none; color: inherit;">
+                <div class="action-icon">
+                    <i class="fas fa-plus"></i>
+                </div>
+                <h3>Post New Project</h3>
+            </a>
+            
+            <a href="payments.php" class="action-card" style="text-decoration: none; color: inherit;">
+                <div class="action-icon">
+                    <i class="fas fa-file-invoice"></i>
+                </div>
+                <h3>View Invoices</h3>
+            </a>
         </div>
-        <h3>Hire Freelancer</h3>
-    </div>
-    <div class="action-card">
-        <div class="action-icon">
-            <i class="fas fa-file-invoice"></i>
-        </div>
-        <h3>View Invoices</h3>
-    </div>
-</div>
 
         <div class="stats-grid">
             <div class="stat-card">
                 <h3><i class="fas fa-briefcase"></i>Active Projects</h3>
-                <div class="stat-value">5</div>
-                <div class="stat-trend">↑ 2 new this week</div>
+                <div class="stat-value"><?php echo $active_projects_count; ?></div>
+                <div class="stat-trend">
+                    <?php 
+                    // You might want to implement a more sophisticated method to track new projects
+                    echo $active_projects_count > 0 ? "↑ New projects this week" : "No active projects"; 
+                    ?>
+                </div>
             </div>
             <div class="stat-card">
                 <h3><i class="fas fa-check-circle"></i>Completed</h3>
-                <div class="stat-value">12</div>
-                <div class="stat-trend">↑ 3 this month</div>
+                <div class="stat-value"><?php echo $completed_projects_count; ?></div>
+                <div class="stat-trend">
+                    <?php 
+                    // Similar to above, you might want a more precise way to track monthly completions
+                    echo $completed_projects_count > 0 ? "↑ Completed this month" : "No completed projects"; 
+                    ?>
+                </div>
             </div>
             <div class="stat-card">
                 <h3><i class="fas fa-dollar-sign"></i>Total Spent</h3>
-                <div class="stat-value">₹8,450</div>
-                <div class="stat-trend">Within budget</div>
-            </div>
-            <div class="stat-card">
-                <h3><i class="fas fa-users"></i>Active Freelancers</h3>
-                <div class="stat-value">7</div>
-                <div class="stat-trend">Top rated</div>
+                <div class="stat-value">₹<?php echo number_format($total_spent, 2); ?></div>
+                <div class="stat-trend">Budget tracking</div>
             </div>
         </div>
 
         <div class="project-grid">
+            <?php while($project = $result_recent_projects->fetch_assoc()): ?>
             <div class="project-card">
                 <div class="project-header">
-                    <h3>Website Redesign</h3>
-                    <p>Tech Stack: HTML, CSS, JavaScript</p>
+                    <h3><?php echo htmlspecialchars($project['job_title']); ?></h3>
+                    <p><?php echo htmlspecialchars($project['task_category']); ?></p>
                 </div>
                 <div class="project-body">
                     <div class="progress-bar">
-                        <div class="progress-fill" style="width: 75%"></div>
+                        <div class="progress-fill" style="width: <?php 
+                            echo $project['job_status'] == 'Completed' ? '100' : 
+                                 ($project['job_status'] == 'In Progress' ? '50' : '25'); 
+                        ?>%"></div>
                     </div>
-                    <p>Progress: 75%</p>
+                    <p>Status: <?php echo htmlspecialchars($project['job_status']); ?></p>
                     <div style="margin-top: 15px;">
-                        <span class="status-badge status-active">Active</span>
+                        <span class="status-badge <?php 
+                            echo $project['job_status'] == 'Open' ? 'status-active' : 
+                                 ($project['job_status'] == 'Completed' ? 'status-completed' : 'status-pending'); 
+                        ?>">
+                            <?php echo htmlspecialchars($project['job_status']); ?>
+                        </span>
                     </div>
                     <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
-                        <span>Budget: ₹3,000</span>
-                        <span>Due: 7 days</span>
+                        <span>Budget: ₹<?php echo number_format($project['budget'], 2); ?></span>
+                        <span>Deadline: <?php echo date('d M Y', strtotime($project['deadline'])); ?></span>
                     </div>
                 </div>
             </div>
-
-            <div class="project-card">
-                <div class="project-header">
-                    <h3>Mobile App Development</h3>
-                    <p>Platform: iOS & Android</p>
-                </div>
-                <div class="project-body">
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: 30%"></div>
-                    </div>
-                    <p>Progress: 30%</p>
-                    <div style="margin-top: 15px;">
-                        <span class="status-badge status-pending">In Review</span>
-                    </div>
-                    <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
-                        <span>Budget: ₹5,000</span>
-                        <span>Due: 14 days</span>
-                    </div>
-                </div>
-            </div>
+            <?php endwhile; ?>
         </div>
 
-        <div class="budget-section">
-            <div class="budget-header">
-                <h2>Budget Overview</h2>
-                <select style="padding: 8px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                    <option>This Month</option>
-                    <option>Last Month</option>
-                    <option>Last 3 Months</option>
-                </select>
-            </div>
-            <div class="budget-chart">
-                <canvas id="budgetChart"></canvas>
-            </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
-                <div style="background: #f8fafc; padding: 15px; border-radius: 12px;">
-                    <h4>Total Budget</h4>
-                    <p style="font-size: 1.5rem; font-weight: bold; color: var(--primary-color);">₹15,000</p>
-                </div>
-                <div style="background: #f8fafc; padding: 15px; border-radius: 12px;">
-                    <h4>Spent</h4>
-                    <p style="font-size: 1.5rem; font-weight: bold; color: #16a34a;">₹8,450</p>
-                </div>
-                <div style="background: #f8fafc; padding: 15px; border-radius: 12px;">
-                    <h4>Remaining</h4>
-                    <p style="font-size: 1.5rem; font-weight: bold; color: #dc2626;">₹6,550</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Freelancer Section -->
-        <div style="background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-            <h2 style="margin-bottom: 20px;">Active Freelancers</h2>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
-                <div style="display: flex; align-items: center; gap: 15px; padding: 15px; background: #f8fafc; border-radius: 12px;">
-                    <img src="/api/placeholder/50/50" alt="Freelancer" style="width: 50px; height: 50px; border-radius: 50%;">
-                    <div>
-                        <h4>John Doe</h4>
-                        <p style="color: #64748b;">Web Developer</p>
-                        <div style="display: flex; gap: 5px; color: #f59e0b;">
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star-half-alt"></i>
-                        </div>
-                    </div>
-                </div>
-                <div style="display: flex; align-items: center; gap: 15px; padding: 15px; background: #f8fafc; border-radius: 12px;">
-                    <img src="/api/placeholder/50/50" alt="Freelancer" style="width: 50px; height: 50px; border-radius: 50%;">
-                    <div>
-                        <h4>Jane Smith</h4>
-                        <p style="color: #64748b;">UI Designer</p>
-                        <div style="display: flex; gap: 5px; color: #f59e0b;">
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
     <script>
-        // Menu Toggle
-        const menuToggle = document.querySelector('.menu-toggle');
+          // Menu Toggle
+          const menuToggle = document.querySelector('.menu-toggle');
         const body = document.body;
 
         menuToggle.addEventListener('click', () => {
@@ -627,3 +588,13 @@ $user2 = $result2->fetch_assoc();
     </script>
 </body>
 </html>
+<?php
+// Close all prepared statements and database connection
+$stmt_client_profile->close();
+$stmt_user->close();
+$stmt_active_projects->close();
+$stmt_completed_projects->close();
+$stmt_total_spent->close();
+$stmt_recent_projects->close();
+$conn->close();
+?>

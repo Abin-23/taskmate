@@ -30,12 +30,12 @@ if ($result && $result->num_rows < 1) {
     header('Location:client_profile.php');    
 }
 
+
 $user = $result->fetch_assoc();
 $sql2 = "SELECT * FROM users WHERE id='" . $_SESSION['user_id'] . "'";
 $result2 = $conn->query($sql2);
 $user2 = $result2->fetch_assoc();
 
-// Get all jobs posted by this client
 $jobsQuery = "SELECT * FROM jobs WHERE client_id = '" . $_SESSION['user_id'] . "' ORDER BY date_posted DESC";
 $jobsResult = $conn->query($jobsQuery);
 ?>
@@ -539,10 +539,9 @@ $jobsResult = $conn->query($jobsQuery);
         </div>
         <ul class="nav-links">
             <li><a href="client_dash.php"><i class="fas fa-th-large"></i>Dashboard</a></li>
-            <li><a href="my_projects.php" class="active"><i class="fas fa-list"></i>My Projects</a></li>
-            <li><a href="#"><i class="fas fa-users"></i>Freelancers</a></li>
+            <li><a href="client_project.php" class="active"><i class="fas fa-list"></i>My Projects</a></li>
             <li><a href="profile_client.php"><i class="fas fa-user"></i>Profile</a></li>
-            <li><a href="#"><i class="fas fa-wallet"></i>Payments</a></li>
+            <li><a href="payments.php"><i class="fas fa-wallet"></i>Payments</a></li>
             <li><a href="client_settings.php"><i class="fas fa-gear"></i>Settings</a></li>
         </ul>
     </div>
@@ -580,16 +579,17 @@ $jobsResult = $conn->query($jobsQuery);
         </div>
 
         <div class="project-filters">
-            <button class="filter-btn active">All Projects</button>
-            <button class="filter-btn">Open</button>
-            <button class="filter-btn">In Progress</button>
-            <button class="filter-btn">Completed</button>
-        </div>
+    <button class="filter-btn active" data-status="all">All Projects</button>
+    <button class="filter-btn" data-status="open">Open</button>
+    <button class="filter-btn" data-status="inprogress">In Progress</button>
+    <button class="filter-btn" data-status="completed">Completed</button>
+</div>
+
 
         <div class="project-list">
             <?php if ($jobsResult && $jobsResult->num_rows > 0) : ?>
                 <?php while ($job = $jobsResult->fetch_assoc()) : ?>
-                    <div class="project-card">
+                    <div class="project-card" data-status="<?php echo strtolower(str_replace(' ', '', $job['job_status'])); ?>">
                         <div class="project-flex">
                             <div class="project-info">
                                 <h3 class="project-title"><?php echo htmlspecialchars($job['job_title']); ?></h3>
@@ -636,18 +636,39 @@ $jobsResult = $conn->query($jobsQuery);
 
                                 
            <div class="action-buttons">
-    <form action="<?php echo $_SERVER['PHP_SELF']; ?>" method="POST" style="display:inline;">
-        <input type="hidden" name="job_id" value="<?php echo $job['job_id']; ?>">
+           <?php if ($job['job_status'] === 'In Progress') : ?>
+    <a href="chat.php?job_id=<?php echo htmlspecialchars($job['job_id']); ?>" class="btn btn-primary">Message</a>
+<?php elseif ($job['job_status'] === 'Open') : ?> 
+    <form action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>" method="POST" style="display:inline;">
+        <input type="hidden" name="job_id" value="<?php echo htmlspecialchars($job['job_id']); ?>">
         <input type="hidden" name="redirect_to" value="view_application.php">
         <button type="submit" class="btn btn-primary">View Applications</button>
     </form>
-    
+<?php endif; ?>
+
+<?php if ($job['job_status'] === 'In Progress') : ?>
+    <form action="update_status.php" method="POST" style="display:inline;">
+        <input type="hidden" name="job_id" value="<?php echo $job['job_id']; ?>">
+        <select name="job_status" onchange="this.form.submit()" class="btn btn-outline">
+            <option value="In Progress" selected>In Progress</option>
+            <option value="Completed">Completed</option>
+        </select>
+    </form>
+<?php elseif ($job['job_status'] === 'Open') : ?>
     <form action="<?php echo $_SERVER['PHP_SELF']; ?>" method="POST" style="display:inline;">
         <input type="hidden" name="job_id" value="<?php echo $job['job_id']; ?>">
         <input type="hidden" name="redirect_to" value="edit_project.php">
         <button type="submit" class="btn btn-outline">Edit Project</button>
     </form>
+<?php elseif($job['job_status']=='Completed') : ?>
+    <form action="feedback.php" method="GET" style="display:inline;">
+        <input type="hidden" name="job_id" value="<?php echo $job['job_id']; ?>">
+        <button type="submit" class="btn btn-outline">Give Feedback</button>
+        </select>
+    </form>
+<?php endif; ?>
 </div>
+
 
                             </div>
                             <div class="project-stats">
@@ -688,15 +709,7 @@ $jobsResult = $conn->query($jobsQuery);
                     </div>
                 <?php endwhile; ?>
                 
-                <div class="pagination">
-                    <button class="page-btn active">1</button>
-                    <button class="page-btn">2</button>
-                    <button class="page-btn">3</button>
-                    <span>...</span>
-                    <button class="page-btn">
-                        <i class="fas fa-angle-right"></i>
-                    </button>
-                </div>
+
             <?php else : ?>
                 <div class="empty-state">
                     <i class="fas fa-clipboard-list"></i>
@@ -709,6 +722,7 @@ $jobsResult = $conn->query($jobsQuery);
     </div>
 
     <script>
+    document.addEventListener("DOMContentLoaded", function() {
         const menuToggle = document.querySelector('.menu-toggle');
         const body = document.body;
 
@@ -716,18 +730,80 @@ $jobsResult = $conn->query($jobsQuery);
             body.classList.toggle('show-sidebar');
         });
 
+        // Filter functionality
         const filterButtons = document.querySelectorAll('.filter-btn');
+        const jobCards = document.querySelectorAll('.project-card');
+
         filterButtons.forEach(button => {
             button.addEventListener('click', () => {
                 filterButtons.forEach(btn => btn.classList.remove('active'));
                 button.classList.add('active');
+
+                const filterStatus = button.getAttribute('data-status');
+
+                jobCards.forEach(card => {
+                    if (filterStatus === 'all' || card.getAttribute('data-status') === filterStatus) {
+                        card.style.display = 'block';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
             });
         });
 
+        // Search functionality
         const searchInput = document.querySelector('.search-bar input');
+
         searchInput.addEventListener('input', (e) => {
             const searchTerm = e.target.value.toLowerCase();
+
+            jobCards.forEach(card => {
+                const title = card.querySelector('.project-title').textContent.toLowerCase();
+                const description = card.querySelector('.project-desc').textContent.toLowerCase();
+
+                if (title.includes(searchTerm) || description.includes(searchTerm)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
         });
-    </script>
+
+        // Message modal functionality
+        function showMessageModal(jobId, jobTitle) {
+            const modal = document.getElementById('messageModal');
+            const jobIdField = document.getElementById('jobId');
+            const messageJobTitle = document.getElementById('messageJobTitle');
+
+            jobIdField.value = jobId;
+            messageJobTitle.textContent = 'Job: ' + jobTitle;
+
+            modal.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('messageModal');
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('messageModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+        });
+    });
+</script>
+
 </body>
 </html>

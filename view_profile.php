@@ -15,22 +15,28 @@ if ($conn->connect_error) {
 $freelancer_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
 // Fetch freelancer details with skills
-$query = "SELECT 
-    u.id,
-    u.name,
-    u.email,
-    u.mobile,
-    u.created_at,
-    fp.bio,
-    fp.experience,
-    fp.portfolio_link,
-    fp.profile_picture,
-    GROUP_CONCAT(DISTINCT s.skill_name) as skills,
-    GROUP_CONCAT(DISTINCT s.category) as categories
+$query ="SELECT 
+u.id,
+u.name,
+u.email,
+u.mobile,
+u.created_at,
+fp.bio,
+fp.experience,
+fp.portfolio_link,
+fp.profile_picture,
+GROUP_CONCAT(DISTINCT s.skill_name) as skills,
+GROUP_CONCAT(DISTINCT s.category) as categories,
+AVG(f.rating) as avg_rating,
+COUNT(DISTINCT f.feedback_id) as feedback_count
 FROM users u
 INNER JOIN freelancer_profile fp ON u.id = fp.user_id
-LEFT JOIN freelancer_skills fs ON fp.profile_id = fs.profile_id
+LEFT JOIN (
+SELECT DISTINCT fs.profile_id, s.skill_name, s.category
+FROM freelancer_skills fs
 LEFT JOIN skills s ON fs.skill_id = s.id
+) s ON fp.profile_id = s.profile_id
+LEFT JOIN feedback f ON u.id = f.received_by
 WHERE u.id = ? AND u.role = 'freelancer' AND u.active = 1
 GROUP BY u.id";
 
@@ -300,6 +306,63 @@ if (!$freelancer) {
             background: var(--primary-dark);
             transform: translateY(-2px);
         }
+        .rating-section {
+    margin-bottom: 30px;
+}
+
+.rating-summary {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 15px;
+    background: #f8fafc;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.star-rating {
+    color: #fbbf24;
+    font-size: 20px;
+}
+
+.feedback-list {
+    display: grid;
+    gap: 15px;
+}
+
+.feedback-item {
+    background: #f8fafc;
+    padding: 20px;
+    border-radius: 12px;
+    transition: transform 0.3s ease;
+}
+
+.feedback-item:hover {
+    transform: translateY(-2px);
+}
+
+.feedback-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.feedback-rating {
+    display: flex;
+    gap: 5px;
+    color: #fbbf24;
+}
+
+.feedback-comment {
+    color: #64748b;
+    line-height: 1.6;
+}
+
+.feedback-date {
+    color: #94a3b8;
+    font-size: 14px;
+}
 
         @media (max-width: 768px) {
             .main-content {
@@ -425,6 +488,84 @@ if (!$freelancer) {
                     </div>
                     <?php endif; ?>
                 </div>
+                <!-- Add this after the Contact Information section -->
+<div class="section rating-section">
+    <h2 class="section-title">
+        <i class="fas fa-star"></i>
+        Feedback & Ratings
+    </h2>
+    
+    <div class="rating-summary">
+        <div class="star-rating">
+            <?php
+            $rating = round($freelancer['avg_rating'], 1);
+            $full_stars = floor($rating);
+            $half_star = ($rating - $full_stars) >= 0.5;
+            
+            // Full stars
+            for ($i = 0; $i < $full_stars; $i++) {
+                echo '<i class="fas fa-star"></i>';
+            }
+            // Half star
+            if ($half_star) {
+                echo '<i class="fas fa-star-half-alt"></i>';
+            }
+            // Empty stars
+            for ($i = $full_stars + ($half_star ? 1 : 0); $i < 5; $i++) {
+                echo '<i class="far fa-star"></i>';
+            }
+            ?>
+        </div>
+        <span><?php echo number_format($freelancer['avg_rating'], 1); ?> / 5 (<?php echo $freelancer['feedback_count']; ?> reviews)</span>
+    </div>
+
+    <div class="feedback-list">
+        <?php
+        // Fetch individual feedback
+        $feedback_query = "SELECT f.rating, f.comment, f.created_at, u.name as reviewer_name
+                          FROM feedback f
+                          INNER JOIN users u ON f.given_by = u.id
+                          WHERE f.received_by = ?
+                          ORDER BY f.created_at DESC
+                          LIMIT 5";
+        
+        $feedback_stmt = $conn->prepare($feedback_query);
+        $feedback_stmt->bind_param("i", $freelancer_id);
+        $feedback_stmt->execute();
+        $feedback_result = $feedback_stmt->get_result();
+
+        while ($feedback = $feedback_result->fetch_assoc()) {
+        ?>
+            <div class="feedback-item">
+                <div class="feedback-header">
+                    <div>
+                        <strong><?php echo htmlspecialchars($feedback['reviewer_name']); ?></strong>
+                        <div class="feedback-rating">
+                            <?php
+                            for ($i = 0; $i < 5; $i++) {
+                                if ($i < $feedback['rating']) {
+                                    echo '<i class="fas fa-star"></i>';
+                                } else {
+                                    echo '<i class="far fa-star"></i>';
+                                }
+                            }
+                            ?>
+                        </div>
+                    </div>
+                    <span class="feedback-date">
+                        <?php echo date('M d, Y', strtotime($feedback['created_at'])); ?>
+                    </span>
+                </div>
+                <p class="feedback-comment">
+                    <?php echo nl2br(htmlspecialchars($feedback['comment'])); ?>
+                </p>
+            </div>
+        <?php
+        }
+        $feedback_stmt->close();
+        ?>
+    </div>
+</div>
             </div>
         </div>
     </div>

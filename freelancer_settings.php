@@ -17,39 +17,14 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $user_id = $_SESSION['user_id'];
-$user_query = "SELECT * FROM users WHERE id = $user_id";
-$result = mysqli_query($conn, $user_query);
+// Use prepared statement for security
+$user_stmt = mysqli_prepare($conn, "SELECT * FROM users WHERE id = ?");
+mysqli_stmt_bind_param($user_stmt, "i", $user_id);
+mysqli_stmt_execute($user_stmt);
+$result = mysqli_stmt_get_result($user_stmt);
 $user_data = mysqli_fetch_assoc($result);
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    if (isset($_POST['update_profile'])) {
-        $name = mysqli_real_escape_string($conn, $_POST['name']);
-        $email = mysqli_real_escape_string($conn, $_POST['email']);
-        
-        if (empty($name) || empty($email)) {
-            $error = "Name and email are required fields.";
-        } else {
-            $check_email = mysqli_query($conn, "SELECT id FROM users WHERE email='$email' AND id != $user_id");
-            if (mysqli_num_rows($check_email) > 0) {
-                $error = "Email already exists!";
-            } else {
-                // Check if data has actually changed
-                if ($name === $user_data['name'] && $email === $user_data['email']) {
-                    $info_message = "No changes detected in profile information.";
-                } else {
-                    $update_query = "UPDATE users SET name='$name', email='$email' WHERE id=$user_id";
-                    if (mysqli_query($conn, $update_query)) {
-                        $success_message = "Profile updated successfully!";
-                        // Update user_data to reflect changes
-                        $user_data['name'] = $name;
-                        $user_data['email'] = $email;
-                    } else {
-                        $error = "Error updating profile: " . mysqli_error($conn);
-                    }
-                }
-            }
-        }
-    }
     
     if (isset($_POST['update_password'])) {
         $current_password = $_POST['current_password'];
@@ -62,15 +37,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $error = "New passwords do not match!";
         } else if (strlen($new_password) < 8) {
             $error = "Password must be at least 8 characters long!";
+        } else if (!preg_match('/[A-Z]/', $new_password) || !preg_match('/[a-z]/', $new_password) || !preg_match('/[0-9]/', $new_password)) {
+            $error = "Password must contain at least one uppercase letter, one lowercase letter, and one number!";
         } else {
-            $password_query = "SELECT password FROM users WHERE id=$user_id";
-            $result = mysqli_query($conn, $password_query);
-            $user = mysqli_fetch_array($result);
+            // Use prepared statement for security
+            $password_stmt = mysqli_prepare($conn, "SELECT password FROM users WHERE id = ?");
+            mysqli_stmt_bind_param($password_stmt, "i", $user_id);
+            mysqli_stmt_execute($password_stmt);
+            $password_result = mysqli_stmt_get_result($password_stmt);
+            $user = mysqli_fetch_array($password_result);
             
             if (password_verify($current_password, $user['password'])) {
                 $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-                $update_query = "UPDATE users SET password='$hashed_password' WHERE id=$user_id";
-                if (mysqli_query($conn, $update_query)) {
+                
+                // Use prepared statement for security
+                $update_stmt = mysqli_prepare($conn, "UPDATE users SET password = ? WHERE id = ?");
+                mysqli_stmt_bind_param($update_stmt, "si", $hashed_password, $user_id);
+                
+                if (mysqli_stmt_execute($update_stmt)) {
                     $success_message = "Password updated successfully!";
                 } else {
                     $error = "Error updating password: " . mysqli_error($conn);
@@ -126,6 +110,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             padding: 25px;
             box-shadow: 0 0 20px rgba(0,0,0,0.05);
             z-index: 1000;
+            transition: transform 0.3s ease;
         }
 
         .logo {
@@ -190,6 +175,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         .main-content {
             margin-left: var(--sidebar-width);
             padding: 30px;
+            transition: margin-left 0.3s ease;
         }
 
         .settings-container {
@@ -264,6 +250,29 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         .error-message {
             color: var(--error-color);
+        }
+
+        .validation-criteria {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .criteria {
+            margin-bottom: 5px;
+            color: #64748b;
+        }
+
+        .criteria.valid {
+            color: var(--success-color);
+        }
+
+        .criteria.invalid {
+            color: var(--error-color);
+        }
+
+        .criteria i {
+            margin-right: 5px;
+            font-size: 12px;
         }
 
         .toggle-switch {
@@ -386,6 +395,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             z-index: 100;
             cursor: pointer;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            justify-content: center;
+            align-items: center;
         }
 
         @media (max-width: 768px) {
@@ -396,17 +407,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             .sidebar {
                 transform: translateX(-100%);
-                transition: transform 0.3s ease;
             }
 
-            .show-sidebar .sidebar {
+            body.show-sidebar .sidebar {
                 transform: translateX(0);
             }
             
             .menu-toggle {
                 display: flex;
-                align-items: center;
-                justify-content: center;
             }
         }
     </style>
@@ -418,154 +426,159 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </div>
         <ul class="nav-links">
             <li><a href="freelancer_dash.php"><i class="fas fa-th-large"></i>Dashboard</a></li>
-            <li><a href="#"><i class="fas fa-briefcase"></i>My Jobs</a></li>
+            <li><a href="freelancer_job.php"><i class="fas fa-briefcase"></i>My Jobs</a></li>
             <li><a href="profile_freelancer.php"><i class="fas fa-user"></i>Profile</a></li>
-            <li><a href="#"><i class="fas fa-wallet"></i>Earnings</a></li>
+            <li><a href="earnings.php"><i class="fas fa-wallet"></i>Earnings</a></li>
             <li><a href="freelancer_settings.php" class="active"><i class="fas fa-gear"></i>Settings</a></li>
         </ul>
     </div>
 
     <div class="main-content">
+        <button class="menu-toggle" aria-label="Toggle Menu">
+            <i class="fas fa-bars"></i>
+        </button>
+        
         <div class="settings-container">
             <?php if (isset($success_message)): ?>
             <div class="success-message">
                 <i class="fas fa-check-circle"></i>
-                <?php echo $success_message; ?>
+                <?php echo htmlspecialchars($success_message); ?>
             </div>
             <?php endif; ?>
             
             <?php if (isset($info_message)): ?>
             <div class="info-message">
                 <i class="fas fa-info-circle"></i>
-                <?php echo $info_message; ?>
+                <?php echo htmlspecialchars($info_message); ?>
             </div>
             <?php endif; ?>
             
             <?php if (isset($error)): ?>
             <div class="error-alert">
                 <i class="fas fa-exclamation-circle"></i>
-                <?php echo $error; ?>
+                <?php echo htmlspecialchars($error); ?>
             </div>
             <?php endif; ?>
-
-            <div class="section">
-                <div class="section-header">
-                    <i class="fas fa-user-circle"></i>
-                    <h2>Profile Settings</h2>
-                </div>
-                <form method="POST" action="#" id="profileForm">
-                    <div class="form-group">
-                        <label for="name">Full Name</label>
-                        <input type="text" id="name" name="name" value="<?php echo $user_data['name'];?>" data-original="<?php echo $user_data['name'];?>">
-                        <div id="nameValidation" class="validation-message"></div>
-                    </div>
-                    <div class="form-group">
-                        <label for="email">Email</label>
-                        <input type="email" id="email" name="email" value="<?php echo $user_data['email'];?>" data-original="<?php echo $user_data['email'];?>">
-                        <div id="emailValidation" class="validation-message"></div>
-                    </div>
-                    <button type="submit" name="update_profile" id="profileBtn" class="btn btn-primary" disabled>Update Profile</button>
-                </form>
-            </div>
 
             <div class="section">
                 <div class="section-header">
                     <i class="fas fa-lock"></i>
                     <h2>Security Settings</h2>
                 </div>
-                <form method="POST" action="#" id="passwordForm">
+                <form method="POST" action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>" id="passwordForm">
                     <div class="form-group">
                         <label for="current_password">Current Password</label>
                         <input type="password" id="current_password" name="current_password">
-                        <div id="currentPasswordValidation" class="validation-message"></div>
+                        <span class="validation-message" id="currentPasswordValidation"></span>
                     </div>
                     <div class="form-group">
                         <label for="new_password">New Password</label>
                         <input type="password" id="new_password" name="new_password">
-                        <div id="newPasswordValidation" class="validation-message"></div>
+                        <div class="validation-criteria" id="passwordCriteria">
+                            <div class="criteria" id="lengthCriteria"><i class="fas fa-circle"></i> At least 8 characters</div>
+                            <div class="criteria" id="uppercaseCriteria"><i class="fas fa-circle"></i> At least 1 uppercase letter</div>
+                            <div class="criteria" id="lowercaseCriteria"><i class="fas fa-circle"></i> At least 1 lowercase letter</div>
+                            <div class="criteria" id="numberCriteria"><i class="fas fa-circle"></i> At least 1 number</div>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="confirm_password">Confirm New Password</label>
                         <input type="password" id="confirm_password" name="confirm_password">
-                        <div id="confirmPasswordValidation" class="validation-message"></div>
+                        <span class="validation-message" id="confirmPasswordValidation"></span>
                     </div>
-                    <button type="submit" name="update_password" id="passwordBtn" class="btn btn-primary">Update Password</button>
+                    <button type="submit" name="update_password" class="btn btn-primary" id="passwordBtn">Update Password</button>
                 </form>
             </div>
         </div>
     </div>
 
     <script>
-        const menuToggle = document.createElement('button');
-        menuToggle.className = 'menu-toggle';
-        menuToggle.innerHTML = '<i class="fas fa-bars"></i>';
-        document.querySelector('.main-content').prepend(menuToggle);
-
+        // Mobile menu toggle
+        const menuToggle = document.querySelector('.menu-toggle');
+        
         menuToggle.addEventListener('click', () => {
             document.body.classList.toggle('show-sidebar');
         });
-
-        const nameInput = document.getElementById('name');
-        const emailInput = document.getElementById('email');
-        const nameValidation = document.getElementById('nameValidation');
-        const emailValidation = document.getElementById('emailValidation');
-        const profileBtn = document.getElementById('profileBtn');
         
         const currentPasswordInput = document.getElementById('current_password');
         const newPasswordInput = document.getElementById('new_password');
         const confirmPasswordInput = document.getElementById('confirm_password');
         const currentPasswordValidation = document.getElementById('currentPasswordValidation');
-        const newPasswordValidation = document.getElementById('newPasswordValidation');
         const confirmPasswordValidation = document.getElementById('confirmPasswordValidation');
         const passwordBtn = document.getElementById('passwordBtn');
+        
+        // Password criteria elements
+        const lengthCriteria = document.getElementById('lengthCriteria');
+        const uppercaseCriteria = document.getElementById('uppercaseCriteria');
+        const lowercaseCriteria = document.getElementById('lowercaseCriteria');
+        const numberCriteria = document.getElementById('numberCriteria');
 
-        function validateProfileForm() {
-            let isValid = true;
+        // Live password validation
+        newPasswordInput.addEventListener('input', function() {
+            const password = this.value;
             
-            if (nameInput.value.trim() === '') {
-                nameValidation.textContent = 'Name is required';
-                nameValidation.className = 'validation-message error-message';
-                nameInput.classList.add('error');
-                isValid = false;
+            // Check length
+            if (password.length >= 8) {
+                lengthCriteria.className = 'criteria valid';
+                lengthCriteria.innerHTML = '<i class="fas fa-check-circle"></i> At least 8 characters';
             } else {
-                nameValidation.textContent = '';
-                nameInput.classList.remove('error');
+                lengthCriteria.className = 'criteria invalid';
+                lengthCriteria.innerHTML = '<i class="fas fa-times-circle"></i> At least 8 characters';
             }
             
-            if (emailInput.value.trim() === '') {
-                emailValidation.textContent = 'Email is required';
-                emailValidation.className = 'validation-message error-message';
-                emailInput.classList.add('error');
-                isValid = false;
-            } else if (!/^\S+@\S+\.\S+$/.test(emailInput.value.trim())) {
-                emailValidation.textContent = 'Please enter a valid email address';
-                emailValidation.className = 'validation-message error-message';
-                emailInput.classList.add('error');
-                isValid = false;
+            // Check uppercase
+            if (/[A-Z]/.test(password)) {
+                uppercaseCriteria.className = 'criteria valid';
+                uppercaseCriteria.innerHTML = '<i class="fas fa-check-circle"></i> At least 1 uppercase letter';
             } else {
-                emailValidation.textContent = '';
-                emailInput.classList.remove('error');
+                uppercaseCriteria.className = 'criteria invalid';
+                uppercaseCriteria.innerHTML = '<i class="fas fa-times-circle"></i> At least 1 uppercase letter';
             }
             
-            const nameOriginal = nameInput.getAttribute('data-original');
-            const emailOriginal = emailInput.getAttribute('data-original');
-            
-            if (nameInput.value.trim() === nameOriginal && emailInput.value.trim() === emailOriginal) {
-                profileBtn.disabled = true;
-                profileBtn.style.opacity = '0.7';
-                profileBtn.style.cursor = 'not-allowed';
+            // Check lowercase
+            if (/[a-z]/.test(password)) {
+                lowercaseCriteria.className = 'criteria valid';
+                lowercaseCriteria.innerHTML = '<i class="fas fa-check-circle"></i> At least 1 lowercase letter';
             } else {
-                profileBtn.disabled = false;
-                profileBtn.style.opacity = '1';
-                profileBtn.style.cursor = 'pointer';
+                lowercaseCriteria.className = 'criteria invalid';
+                lowercaseCriteria.innerHTML = '<i class="fas fa-times-circle"></i> At least 1 lowercase letter';
             }
             
-            return isValid;
+            // Check number
+            if (/[0-9]/.test(password)) {
+                numberCriteria.className = 'criteria valid';
+                numberCriteria.innerHTML = '<i class="fas fa-check-circle"></i> At least 1 number';
+            } else {
+                numberCriteria.className = 'criteria invalid';
+                numberCriteria.innerHTML = '<i class="fas fa-times-circle"></i> At least 1 number';
+            }
+            
+            // Check if confirmation matches
+            if (confirmPasswordInput.value) {
+                validatePasswordMatch();
+            }
+        });
+        
+        // Validate password match
+        function validatePasswordMatch() {
+            if (confirmPasswordInput.value !== newPasswordInput.value) {
+                confirmPasswordValidation.textContent = 'Passwords do not match';
+                confirmPasswordValidation.className = 'validation-message error-message';
+                confirmPasswordInput.classList.add('error');
+                return false;
+            } else {
+                confirmPasswordValidation.textContent = '';
+                confirmPasswordInput.classList.remove('error');
+                return true;
+            }
         }
+        
+        confirmPasswordInput.addEventListener('input', validatePasswordMatch);
 
         function validatePasswordForm() {
             let isValid = true;
             
+            // Validate current password
             if (currentPasswordInput.value.trim() === '') {
                 currentPasswordValidation.textContent = 'Current password is required';
                 currentPasswordValidation.className = 'validation-message error-message';
@@ -576,19 +589,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 currentPasswordInput.classList.remove('error');
             }
             
-            if (newPasswordInput.value.trim() === '') {
-                newPasswordValidation.textContent = 'New password is required';
-                newPasswordValidation.className = 'validation-message error-message';
-                newPasswordInput.classList.add('error');
+            // Validate new password
+            const password = newPasswordInput.value;
+            const passwordValid = password.length >= 8 && 
+                                  /[A-Z]/.test(password) && 
+                                  /[a-z]/.test(password) && 
+                                  /[0-9]/.test(password);
+            
+            if (!passwordValid) {
                 isValid = false;
-            } else if (newPasswordInput.value.length < 8) {
-                newPasswordValidation.textContent = 'Password must be at least 8 characters long';
-                newPasswordValidation.className = 'validation-message error-message';
-                newPasswordInput.classList.add('error');
-                isValid = false;
-            } else {
-                newPasswordValidation.textContent = '';
-                newPasswordInput.classList.remove('error');
             }
             
             if (confirmPasswordInput.value.trim() === '') {
@@ -608,17 +617,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             
             return isValid;
         }
-
-        nameInput.addEventListener('input', validateProfileForm);
-        emailInput.addEventListener('input', validateProfileForm);
         
-        currentPasswordInput.addEventListener('input', validatePasswordForm);
-        newPasswordInput.addEventListener('input', validatePasswordForm);
-        confirmPasswordInput.addEventListener('input', validatePasswordForm);
-        
-        document.getElementById('profileForm').addEventListener('submit', function(e) {
-            if (!validateProfileForm()) {
-                e.preventDefault();
+        currentPasswordInput.addEventListener('input', function() {
+            if (this.value.trim() !== '') {
+                currentPasswordValidation.textContent = '';
+                this.classList.remove('error');
             }
         });
         
@@ -627,11 +630,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 e.preventDefault();
             }
         });
-        
-        validateProfileForm();
     </script>
 </body>
 </html>
-<?php
-$conn->close();
-?>

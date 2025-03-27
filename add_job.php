@@ -370,7 +370,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         </div>
 
                         <div class="form-group">
-                            <label for="budget">Budget (USD)</label>
+                            <label for="budget">Budget</label>
                             <input type="number" id="budget" name="budget" min="1" step="0.01" 
                                 placeholder="Enter your budget" required>
                         </div>
@@ -385,11 +385,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <i class="fas fa-paper-plane"></i>
                         Post Job
                     </button>
-
-                    <p class="fee-notice">
-                        <i class="fas fa-info-circle"></i>
-                        A posting fee of $10.00 will be charged when your job is published
-                    </p>
                 </form>
             </div>
         </div>

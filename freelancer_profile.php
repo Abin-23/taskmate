@@ -34,33 +34,43 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         die("Invalid portfolio URL.");
     }
 
-    // Profile Picture Upload
-    $profilePic = '';
-    if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] === UPLOAD_ERR_OK) {
-        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-        $fileType = mime_content_type($_FILES['profile_picture']['tmp_name']);
-        $fileSize = $_FILES['profile_picture']['size'];
+ // Profile Picture Upload
+$profilePic = '';
+if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] === UPLOAD_ERR_OK) {
+    $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    $fileTmp = $_FILES['profile_picture']['tmp_name'];
+    $fileSize = $_FILES['profile_picture']['size'];
+    $fileName = basename($_FILES['profile_picture']['name']);
+    $uploadDir = 'uploads/';
 
-        if (!in_array($fileType, $allowedTypes)) {
-            die("Invalid file type. Only JPG, PNG, and GIF are allowed.");
-        }
-
-        if ($fileSize > 2 * 1024 * 1024) {
-            die("File size exceeds the 2MB limit.");
-        }
-
-        $fileTmp = $_FILES['profile_picture']['tmp_name'];
-        $fileName = uniqid() . '_' . basename($_FILES['profile_picture']['name']);
-        $uploadDir = 'uploads/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
-        move_uploaded_file($fileTmp, $uploadDir . $fileName);
-        $profilePic = $uploadDir . $fileName;
+    // Ensure uploads directory exists
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0755, true);
     }
 
-    $sql = "INSERT INTO freelancer_profile (user_id, experience, bio, portfolio_link, profile_picture)
-            VALUES ('" . $_SESSION['user_id'] . "', '$experience', '$bio', '$portfolio', '$profilePic')";
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $fileType = finfo_file($finfo, $fileTmp);
+    finfo_close($finfo);
+
+    if (!in_array($fileType, $allowedTypes)) {
+        die("Invalid file type. Only JPG, PNG, and GIF are allowed.");
+    }
+
+    $fileExt = pathinfo($fileName, PATHINFO_EXTENSION);
+    $uniqueFileName = uniqid('profile_', true) . '.' . $fileExt;
+
+    if (move_uploaded_file($fileTmp, $uploadDir . $uniqueFileName)) {
+        $profilePic = $uploadDir . $uniqueFileName;
+    } else {
+        die("Error uploading profile picture. Check folder permissions.");
+    }
+}
+
+    $upi_id = trim($conn->real_escape_string($_POST['upi_id']));
+
+     $sql = "INSERT INTO freelancer_profile (user_id, experience, bio, portfolio_link, profile_picture, upi_id)
+        VALUES ('" . $_SESSION['user_id'] . "', '$experience', '$bio', '$portfolio', '$profilePic', '$upi_id')";
+
 
     if ($conn->query($sql) === TRUE) {
         header('Location: fetch_skills.php');
@@ -311,7 +321,38 @@ body {
         padding: 0.8rem 0.8rem 0.8rem 2.5rem;
     }
 }
+.verify-btn {
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        font-size: 1rem;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: 0.3s;
+        display: block;
+        width: 100%;
+        margin-top: 10px;
+    }
 
+    .verify-btn:hover {
+        background: var(--gradient-end);
+        transform: scale(1.05);
+    }
+    .error-message {
+        color: #ef4444;
+        font-size: 0.85rem;
+        margin-top: 4px;
+        display: none;
+    }
+    
+    .input-error {
+        border-color: #ef4444 !important;
+    }
+    
+    .input-success {
+        border-color: #10b981 !important;
+    }
     </style>
 </head>
 <body>
@@ -321,13 +362,15 @@ body {
         </div>
         
         <form action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>" method="POST" enctype="multipart/form-data" id="freelancerForm">
-            <div class="profile-section">
-                <div class="profile-preview" id="profilePreview" onclick="document.getElementById('profile-pic').click()">
-                    <i class="fas fa-user fa-2x"></i>
-                </div>
-                <input type="file" id="profile-pic" name="profile_picture" hidden accept="image/*" onchange="previewImage(event)">
-                <div class="error-message" id="profilePicError"></div>
-            </div>
+        <div class="profile-section">
+    <div class="profile-preview" id="profilePreview" onclick="document.getElementById('profile-pic').click()">
+        <img id="previewImage" src="default-avatar.png" alt="Profile" style="display: none; width: 100px; height: 100px; border-radius: 50%;">
+        <i class="fas fa-user fa-2x" id="defaultIcon"></i>
+    </div>
+    <input type="file" id="profile-pic" name="profile_picture" hidden accept="image/*">
+    <div class="error-message" id="profilePicError"></div>
+</div>
+
 
             <div class="form-content">
                 <div class="input-group">
@@ -354,94 +397,195 @@ body {
                     <input type="url" name="portfolio" id="portfolio" placeholder="https://example.com">
                     <div class="error-message" id="portfolioError"></div>
                 </div>
+                
+                <div class="input-group">
+                    <label class="required">UPI ID</label>
+                    <input type="text" name="upi_id" id="upi_id" placeholder="example@upi">
+                    <div class="error-message" id="upiError"></div>
+                    <input type="hidden" id="upi_verified" name="upi_verified" value="0">
+
+                    <button type="button" class="verify-btn" id="verifyUPI">Verify</button>
+                </div>
 
                 <button type="submit" class="submit-button">Save Profile</button>
             </div>
         </form>
     </div>
-
     <script>
-        document.getElementById('freelancerForm').addEventListener('submit', function(e) {
-            if (!validateForm()) {
-                e.preventDefault();
-            }
-        });
+        
+        document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('freelancerForm');
+    const upiInput = document.getElementById('upi_id');
+    const verifyUpiBtn = document.getElementById('verifyUPI');
+    const upiVerifiedInput = document.getElementById('upi_verified');
+    const profilePicInput = document.getElementById('profile-pic');
+    const errors = {
+        upi: document.getElementById('upiError'),
+        profilePic: document.getElementById('profilePicError'),
+        experience: document.getElementById('experienceError'),
+        bio: document.getElementById('bioError'),
+        portfolio: document.getElementById('portfolioError')
+    };
 
-        const inputs = ['experience', 'bio', 'portfolio'];
-        inputs.forEach(id => {
-            document.getElementById(id).addEventListener('input', validateForm);
-        });
-        document.getElementById('profile-pic').addEventListener('change', validateForm);
+    let upiVerified = false;
 
-        function validateForm() {
-            let isValid = true;
+    function showError(field, errorElement, message) {
+        field.classList.add('input-error');
+        field.classList.remove('input-success');
+        errorElement.textContent = message;
+        errorElement.style.display = 'block';
+        errorElement.style.color = '#ef4444';
+        return false;
+    }
 
-            const profilePic = document.getElementById('profile-pic').files[0];
-            const profilePreview = document.getElementById('profilePreview');
-            const profilePicError = document.getElementById('profilePicError');
+    function showSuccess(field, errorElement, message = '') {
+        field.classList.remove('input-error');
+        field.classList.add('input-success');
+        errorElement.textContent = message;
+        errorElement.style.display = message ? 'block' : 'none';
+        errorElement.style.color = message ? '#10b981' : '';
+        return true;
+    }
 
-            if (!profilePic) {
-                profilePicError.textContent = 'Profile picture is required.';
-                profilePicError.style.display = 'block';
-                profilePreview.classList.add('invalid');
-                isValid = false;
-            } else {
-                profilePicError.textContent = '';
-                profilePicError.style.display = 'none';
-                profilePreview.classList.remove('invalid');
-            }
+    function validateUPI() {
+        if (upiVerified) return true;
 
-            const experience = document.getElementById('experience').value;
-            const experienceError = document.getElementById('experienceError');
-            if (!experience) {
-                experienceError.textContent = 'Please select your experience level.';
-                experienceError.style.display = 'block';
-                isValid = false;
-            } else {
-                experienceError.textContent = '';
-                experienceError.style.display = 'none';
-            }
-
-            const bio = document.getElementById('bio').value.trim();
-            const bioError = document.getElementById('bioError');
-            if (bio.length < 10) {
-                bioError.textContent = 'Bio must be at least 10 characters long.';
-                bioError.style.display = 'block';
-                isValid = false;
-            } else {
-                bioError.textContent = '';
-                bioError.style.display = 'none';
-            }
-
-            const portfolio = document.getElementById('portfolio').value.trim();
-            const portfolioError = document.getElementById('portfolioError');
-            const portfolioPattern = /^(https?:\/\/)?([\w\-]+\.)+[a-z]{2,6}(:\d{1,5})?(\/.*)?$/i;
-            if (portfolio && !portfolioPattern.test(portfolio)) {
-                portfolioError.textContent = 'Please enter a valid portfolio URL.';
-                portfolioError.style.display = 'block';
-                isValid = false;
-            } else {
-                portfolioError.textContent = '';
-                portfolioError.style.display = 'none';
-            }
-
-            return isValid;
+        const upiId = upiInput.value.trim();
+        if (!upiId) {
+            return showError(upiInput, errors.upi, 'UPI ID is required.');
         }
 
-        function previewImage(event) {
-            const profilePreview = document.getElementById('profilePreview');
-            const file = event.target.files[0];
-
-            if (file && file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    profilePreview.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
-                };
-                reader.readAsDataURL(file);
-            } else {
-                profilePreview.innerHTML = '<i class="fas fa-user fa-2x"></i>';
-            }
+        const upiPattern = /^[a-zA-Z0-9.-]{2,256}@[a-zA-Z][a-zA-Z]{2,64}$/;
+        if (!upiPattern.test(upiId)) {
+            return showError(upiInput, errors.upi, 'Invalid UPI ID format (example: username@bank).');
         }
+
+        errors.upi.textContent = 'UPI format looks valid. Click verify to confirm.';
+        errors.upi.style.display = 'block';
+        errors.upi.style.color = '#3b82f6';
+        return true;
+    }
+
+    function verifyUPIWithServer() {
+        const upiId = upiInput.value.trim();
+        if (!validateUPI()) return;
+
+        verifyUpiBtn.textContent = 'Verifying...';
+        verifyUpiBtn.disabled = true;
+
+        fetch('validate_upi.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ upi_id: upiId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                upiVerified = true;
+                upiVerifiedInput.value = "1";
+                showSuccess(upiInput, errors.upi, 'UPI ID has been verified!');
+                verifyUpiBtn.textContent = 'Verified ✓';
+                verifyUpiBtn.disabled = true;
+            } else {
+                upiVerified = false;
+                upiVerifiedInput.value = "0";
+                showError(upiInput, errors.upi, data.message || 'UPI ID verification failed.');
+                verifyUpiBtn.textContent = 'Retry';
+                verifyUpiBtn.disabled = false;
+            }
+        })
+        .catch(error => {
+            upiVerified = false;
+            upiVerifiedInput.value = "0";
+            showError(upiInput, errors.upi, 'Network error while validating UPI.');
+            verifyUpiBtn.textContent = 'Retry';
+            verifyUpiBtn.disabled = false;
+            console.error('Validation error:', error);
+        });
+    }
+
+    function previewImage(event) {
+        const profilePreview = document.getElementById('profilePreview');
+        const file = event.target.files[0];
+
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                profilePreview.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+            };
+            reader.readAsDataURL(file);
+        } else {
+            profilePreview.innerHTML = '<i class="fas fa-user fa-2x"></i>';
+        }
+    }
+
+    function validateForm() {
+        let isValid = true;
+
+        // Profile Picture Validation
+        const profilePic = profilePicInput.files[0];
+        const profilePreview = document.getElementById('profilePreview');
+        if (!profilePic) {
+            showError(profilePicInput, errors.profilePic, 'Profile picture is required.');
+            profilePreview.classList.add('invalid');
+            isValid = false;
+        } else {
+            showSuccess(profilePicInput, errors.profilePic);
+            profilePreview.classList.remove('invalid');
+        }
+
+        // Experience Validation
+        const experience = document.getElementById('experience').value;
+        if (!experience) {
+            showError(document.getElementById('experience'), errors.experience, 'Please select your experience level.');
+            isValid = false;
+        } else {
+            showSuccess(document.getElementById('experience'), errors.experience);
+        }
+
+        // Bio Validation
+        const bio = document.getElementById('bio').value.trim();
+        if (bio.length < 10) {
+            showError(document.getElementById('bio'), errors.bio, 'Bio must be at least 10 characters long.');
+            isValid = false;
+        } else {
+            showSuccess(document.getElementById('bio'), errors.bio);
+        }
+
+        // Portfolio Validation
+        const portfolio = document.getElementById('portfolio').value.trim();
+        const portfolioPattern = /^(https?:\/\/)?([\w\-]+\.)+[a-z]{2,6}(:\d{1,5})?(\/.*)?$/i;
+        if (portfolio && !portfolioPattern.test(portfolio)) {
+            showError(document.getElementById('portfolio'), errors.portfolio, 'Please enter a valid portfolio URL.');
+            isValid = false;
+        } else {
+            showSuccess(document.getElementById('portfolio'), errors.portfolio);
+        }
+
+        // UPI Validation
+        if (!upiVerified && upiVerifiedInput.value !== "1") {
+            showError(upiInput, errors.upi, 'Please verify your UPI ID before submitting.');
+            isValid = false;
+        }
+
+        return isValid;
+    }
+
+    // Event Listeners
+    form.addEventListener('submit', function(e) {
+        if (!validateForm()) {
+            e.preventDefault();
+        }
+    });
+
+    upiInput.addEventListener('input', validateUPI);
+    verifyUpiBtn.addEventListener('click', verifyUPIWithServer);
+    profilePicInput.addEventListener('change', previewImage);
+    
+    ['experience', 'bio', 'portfolio'].forEach(id => {
+        document.getElementById(id).addEventListener('input', validateForm);
+    });
+});
     </script>
 </body>
 </html>

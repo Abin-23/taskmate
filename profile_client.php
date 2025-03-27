@@ -23,9 +23,7 @@ $sql = "SELECT u.*, c.* FROM users u
 $result = $conn->query($sql);
 $user = $result->fetch_assoc();
 
-// Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Update users table
     $name = $conn->real_escape_string($_POST['name']);
     $email = $conn->real_escape_string($_POST['email']);
     $mobile = $conn->real_escape_string($_POST['mobile']);
@@ -38,12 +36,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     $conn->query($sql);
     
-    // Update client_profile table
     $company_name = $conn->real_escape_string($_POST['company_name']);
     $website = $conn->real_escape_string($_POST['website']);
     $address = $conn->real_escape_string($_POST['address']);
     
-    // Handle profile picture upload
     if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] == 0) {
         $target_dir = "uploads/";
         $file_extension = pathinfo($_FILES["profile_picture"]["name"], PATHINFO_EXTENSION);
@@ -92,6 +88,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         :root {
             --primary-color: #3b82f6;
             --primary-dark: #2563eb;
+            --error-color: #ef4444;
+            --success-color: #10b981;
         }
 
         body {
@@ -142,6 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         .form-group {
             margin-bottom: 25px;
+            position: relative;
         }
 
         .form-label {
@@ -166,6 +165,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
+        .form-input.error {
+            border-color: var(--error-color);
+        }
+
+        .form-input.valid {
+            border-color: var(--success-color);
+        }
+
+        .validation-message {
+            font-size: 12px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .error-message {
+            color: var(--error-color);
+        }
+
+        .valid-message {
+            color: var(--success-color);
+        }
+
         .save-btn {
             background: linear-gradient(to right, #3b82f6, #60a5fa);
             color: white;
@@ -180,9 +201,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             width: 100%;
         }
 
-        .save-btn:hover {
+        .save-btn:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
+        }
+
+        .save-btn:disabled {
+            background: linear-gradient(to right, #94a3b8, #cbd5e1);
+            cursor: not-allowed;
         }
 
         .back-btn {
@@ -209,6 +235,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             align-items: center;
             gap: 10px;
         }
+
+        .validation-icon {
+            position: absolute;
+            right: 12px;
+            top: 40px;
+            font-size: 16px;
+        }
+
+        .validation-icon.error {
+            color: var(--error-color);
+        }
+
+        .validation-icon.valid {
+            color: var(--success-color);
+        }
     </style>
 </head>
 <body>
@@ -234,13 +275,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="profile-body">
-            <form method="POST" enctype="multipart/form-data">
+            <form method="POST" enctype="multipart/form-data" id="profileForm">
                 <div class="form-group">
                     <label class="form-label">Profile Picture</label>
                     <input type="file" 
                            name="profile_picture" 
                            accept="image/*" 
-                           class="form-input">
+                           class="form-input"
+                           id="profilePicture">
                 </div>
 
                 <div class="form-group">
@@ -249,7 +291,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                            name="name" 
                            value="<?php echo htmlspecialchars($user['name']); ?>" 
                            class="form-input" 
+                           id="name"
                            required>
+                    <span class="validation-icon"></span>
+                    <span class="validation-message error-message" id="nameError"></span>
                 </div>
 
                 <div class="form-group">
@@ -257,8 +302,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <input type="email" 
                            name="email" 
                            value="<?php echo htmlspecialchars($user['email']); ?>" 
-                           class="form-input" 
+                           class="form-input"
+                           id="email" 
                            required>
+                    <span class="validation-icon"></span>
+                    <span class="validation-message error-message" id="emailError"></span>
                 </div>
 
                 <div class="form-group">
@@ -266,8 +314,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <input type="tel" 
                            name="mobile" 
                            value="<?php echo htmlspecialchars($user['mobile']); ?>" 
-                           class="form-input" 
+                           class="form-input"
+                           id="mobile" 
                            required>
+                    <span class="validation-icon"></span>
+                    <span class="validation-message error-message" id="mobileError"></span>
                 </div>
 
                 <div class="form-group">
@@ -275,8 +326,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <input type="text" 
                            name="company_name" 
                            value="<?php echo htmlspecialchars($user['company_name']); ?>" 
-                           class="form-input" 
+                           class="form-input"
+                           id="companyName" 
                            required>
+                    <span class="validation-icon"></span>
+                    <span class="validation-message error-message" id="companyNameError"></span>
                 </div>
 
                 <div class="form-group">
@@ -284,22 +338,155 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <input type="url" 
                            name="website" 
                            value="<?php echo htmlspecialchars($user['website']); ?>" 
-                           class="form-input">
+                           class="form-input"
+                           id="website">
+                    <span class="validation-icon"></span>
+                    <span class="validation-message error-message" id="websiteError"></span>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">Address</label>
                     <textarea name="address" 
                               class="form-input" 
-                              rows="3" 
+                              rows="3"
+                              id="address" 
                               required><?php echo htmlspecialchars($user['address']); ?></textarea>
+                    <span class="validation-icon"></span>
+                    <span class="validation-message error-message" id="addressError"></span>
                 </div>
 
-                <button type="submit" class="save-btn">
+                <button type="submit" class="save-btn" id="saveBtn" disabled>
                     <i class="fas fa-save"></i> Save Changes
                 </button>
             </form>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('profileForm');
+            const saveBtn = document.getElementById('saveBtn');
+            const inputs = form.querySelectorAll('input:not([type="file"]), textarea');
+            const fileInput = document.getElementById('profilePicture');
+            let formChanged = false;
+            
+            // Store original values to detect changes
+            const originalValues = {};
+            inputs.forEach(input => {
+                originalValues[input.id] = input.value;
+            });
+            
+            // Add validation and change detection for text/email/tel inputs
+            inputs.forEach(input => {
+                input.addEventListener('input', function() {
+                    validateInput(this);
+                    checkFormChanges();
+                });
+                
+                input.addEventListener('blur', function() {
+                    validateInput(this, true);
+                });
+            });
+            
+            // Add change detection for file input
+            fileInput.addEventListener('change', function() {
+                if (this.files.length > 0) {
+                    formChanged = true;
+                    checkFormValidity();
+                }
+            });
+            
+            // Function to validate individual inputs
+            function validateInput(input, showMessage = false) {
+                const validationIcon = input.parentElement.querySelector('.validation-icon');
+                const errorMessage = document.getElementById(input.id + 'Error');
+                let isValid = input.checkValidity();
+                let errorText = '';
+                
+                // Additional custom validation
+                if (input.id === 'name') {
+                    if (input.value.length < 3) {
+                        isValid = false;
+                        errorText = 'Name must be at least 3 characters long';
+                    }
+                } else if (input.id === 'email') {
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(input.value)) {
+                        isValid = false;
+                        errorText = 'Please enter a valid email address';
+                    }
+                } else if (input.id === 'mobile') {
+                    const mobileRegex = /^\+?[0-9]{10,15}$/;
+                    if (!mobileRegex.test(input.value)) {
+                        isValid = false;
+                        errorText = 'Please enter a valid phone number (10-15 digits)';
+                    }
+                } else if (input.id === 'website' && input.value !== '') {
+                    const urlRegex = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+                    if (!urlRegex.test(input.value)) {
+                        isValid = false;
+                        errorText = 'Please enter a valid website URL';
+                    }
+                }
+                
+                // Update UI based on validation result
+                if (!isValid) {
+                    input.classList.add('error');
+                    input.classList.remove('valid');
+                    validationIcon.className = 'validation-icon error fas fa-exclamation-circle';
+                    errorMessage.textContent = errorText || 'Please enter valid information';
+                    if (showMessage) {
+                        errorMessage.style.display = 'block';
+                    }
+                } else {
+                    input.classList.remove('error');
+                    input.classList.add('valid');
+                    validationIcon.className = 'validation-icon valid fas fa-check-circle';
+                    errorMessage.style.display = 'none';
+                }
+                
+                return isValid;
+            }
+            
+            // Function to check if form has changed
+            function checkFormChanges() {
+                formChanged = false;
+                
+                // Check if any input has changed from original value
+                inputs.forEach(input => {
+                    if (input.value !== originalValues[input.id]) {
+                        formChanged = true;
+                    }
+                });
+                
+                // Check if file input has a file selected
+                if (fileInput.files.length > 0) {
+                    formChanged = true;
+                }
+                
+                checkFormValidity();
+            }
+            
+            // Function to check overall form validity
+            function checkFormValidity() {
+                let formValid = true;
+                
+                // Check each input's validity
+                inputs.forEach(input => {
+                    if (input.required && !validateInput(input)) {
+                        formValid = false;
+                    }
+                });
+                
+                // Enable/disable save button based on form validity and changes
+                saveBtn.disabled = !formValid || !formChanged;
+            }
+            
+            // Initial form validation
+            inputs.forEach(input => {
+                validateInput(input);
+            });
+        });
+    </script>
 </body>
 </html>
