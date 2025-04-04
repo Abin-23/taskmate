@@ -63,8 +63,8 @@ $jobs_result = $conn->query($jobs_sql);
 if (!$jobs_result) {
     die("Query failed: " . $conn->error);
 }
-
-// Rest of your HTML code remains the same, starting from <!DOCTYPE html>
+$unreadCountQuery = "SELECT COUNT(*) FROM notifications WHERE user_id = '" . $_SESSION['user_id'] . "' AND is_read = 0";
+$unreadCount = $conn->query($unreadCountQuery)->fetch_row()[0];
 ?>
 
 <!DOCTYPE html>
@@ -428,6 +428,65 @@ if (!$jobs_result) {
                 gap: 10px;
             }
         }
+        .user-info {
+    display: flex;
+    align-items: center;
+    gap: 20px; /* Matches your original spacing */
+}
+
+.notification {
+    position: relative;
+    padding: 8px;
+    display: inline-block;
+    text-decoration: none; /* Removes underline from the link */
+    color: #64748b; /* Matches your logout color */
+    transition: all 0.3s ease;
+}
+
+.notification:hover {
+    transform: scale(1.1); /* Slight zoom on hover */
+}
+
+.notification i {
+    font-size: 1.2rem; /* Slightly larger bell */
+}
+
+.notification-dot {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 10px;
+    height: 10px;
+    background: #ef4444; /* Red dot, can be changed to var(--primary-color) */
+    border-radius: 50%;
+    border: 2px solid white;
+}
+
+.notification-dot::after {
+    content: attr(data-count);
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 16px;
+    height: 16px;
+    background: #ef4444;
+    border-radius: 50%;
+    color: white;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: scale(0);
+    transition: transform 0.2s ease;
+}
+
+.notification-dot[data-count="1"]::after {
+    display: none; /* Show only dot for 1 notification */
+}
+
+.notification-dot[data-count]:not([data-count="1"])::after {
+    transform: scale(1); /* Show count for 2+ notifications */
+}
     </style>
 </head>
 <body>
@@ -454,15 +513,17 @@ if (!$jobs_result) {
                 <input type="text" placeholder="Search for jobs...">
             </div>
             <div class="user-info">
-                <div class="notification">
-                    <i class="fas fa-bell"></i>
-                    <div class="notification-dot"></div>
-                </div>
-                <img src="<?php echo $user['profile_picture']; ?>" alt="Profile" style="width: 35px; height: 35px; border-radius: 50%;">
-                <a href="logout.php" style="text-decoration: none; color: #64748b;">
-                    <i class="fas fa-sign-out-alt"></i>
-                </a>
-            </div>
+    <a href="notifications.php" class="notification">
+        <i class="fas fa-bell"></i>
+        <?php if ($unreadCount > 0): ?>
+            <div class="notification-dot" data-count="<?php echo $unreadCount; ?>"></div>
+        <?php endif; ?>
+    </a>
+    <img src="<?php echo $user['profile_picture']; ?>" alt="Profile" style="width: 35px; height: 35px; border-radius: 50%;">
+    <a href="logout.php" style="text-decoration: none; color: #64748b;">
+        <i class="fas fa-sign-out-alt"></i>
+    </a>
+</div>
         </div>
 
         <div class="job-grid">

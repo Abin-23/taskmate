@@ -44,22 +44,41 @@ $job = $jobCheckResult->fetch_assoc();
 if (isset($_POST['update_status'])) {
     $application_id = $_POST['application_id'];
     $new_status = $_POST['status'];
-    $freelancer_id=$_POST['freelancer_id'];
+    $freelancer_id = $_POST['freelancer_id'];
     
     $updateQuery = "UPDATE applications SET application_status = '$new_status' WHERE application_id = '$application_id'";
     
     if ($conn->query($updateQuery)) {
         if ($new_status == 'Accepted') {
+            // Update job status
             $updateJobQuery = "UPDATE jobs 
-            SET job_status = 'In Progress', 
-                freelancer_id = '$freelancer_id' 
-            WHERE job_id = '$job_id'";
-     $conn->query($updateJobQuery);
+                SET job_status = 'In Progress', 
+                    freelancer_id = '$freelancer_id' 
+                WHERE job_id = '$job_id'";
+            $conn->query($updateJobQuery);
             
+            // Reject other applications
             $rejectOthersQuery = "UPDATE applications SET application_status = 'Rejected' WHERE job_id = '$job_id' AND application_id != '$application_id'";
             $conn->query($rejectOthersQuery);
+            
+            // Fetch job title
+            $jobTitleQuery = "SELECT job_title FROM jobs WHERE job_id = '$job_id'";
+            $jobTitleResult = $conn->query($jobTitleQuery);
+            $jobTitle = $jobTitleResult->fetch_assoc()['job_title'];
+            
+            // Prepare notification message
+            $notificationMessage = "Your application for '$jobTitle' has been accepted!";
+            
+            // Use prepared statement for notification insertion
+            $notificationQuery = "INSERT INTO notifications (user_id, type, message, related_id) VALUES (?, ?, ?, ?)";
+            $stmt = $conn->prepare($notificationQuery);
+            $stmt->bind_param("issi", $freelancer_id, $type, $notificationMessage, $job_id);
+            $type = 'application_accepted'; // Define the type variable
+            $stmt->execute();
+            $stmt->close();
         }
-        header("Location: view_application.php"); 
+
+        header("Location: view_application.php?success=1"); 
         exit();
     } else {
         $error = "Failed to update application status: " . $conn->error;

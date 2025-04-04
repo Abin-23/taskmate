@@ -556,8 +556,9 @@ $jobsResult = $conn->query($jobsQuery);
             </div>
             <div class="user-info">
                 <div class="notification">
-                    <i class="fas fa-bell"></i>
-                    <div class="notification-dot"></div>
+                <a href="notifications.php" class="notification">
+        <i class="fas fa-bell"></i>
+       </a>
                 </div>  
                 <img src="<?php echo $user['profile_picture']?>" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <a href="logout.php" class="logout-btn">
@@ -695,9 +696,9 @@ $jobsResult = $conn->query($jobsQuery);
                                         $today = new DateTime();
                                         $diff = $today->diff($deadline);
                                         
-                                        if ($deadline < $today) {
+                                        if ($deadline < $today & $job['job_status']!='Completed') {
                                             echo '<span style="color: #dc2626;">Overdue</span>';
-                                        } else if ($diff->days <= 3) {
+                                        } else if ($diff->days <= 3 & $job['job_status']!='Completed') {
                                             echo '<span style="color: #f59e0b;">' . date('M d, Y', strtotime($job['deadline'])) . '</span>';
                                         } else {
                                             echo date('M d, Y', strtotime($job['deadline']));

@@ -16,7 +16,6 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
     exit();
 }
 
-// Fetch all jobs with total paid amount, client, and freelancer details
 $sql_jobs = "
     SELECT 
         j.job_id,
@@ -42,7 +41,6 @@ $sql_jobs = "
 ";
 $result_jobs = $conn->query($sql_jobs);
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -51,6 +49,7 @@ $result_jobs = $conn->query($sql_jobs);
     <title>TaskMate - Admin Jobs</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        
         * {
             margin: 0;
             padding: 0;
@@ -65,7 +64,6 @@ $result_jobs = $conn->query($sql_jobs);
             --gradient-start: #3b82f6;
             --gradient-end: #60a5fa;
         }
-
         body {
             background: #f8fafc;
             min-height: 100vh;
@@ -332,6 +330,7 @@ $result_jobs = $conn->query($sql_jobs);
                 min-width: 1000px;
             }
         }
+
     </style>
 </head>
 <body>
@@ -340,11 +339,11 @@ $result_jobs = $conn->query($sql_jobs);
             <span>Task</span><span>Mate</span>
         </div>
         <ul class="nav-links">
-            <li><a href="admin_dash.php"><i class="fas fa-th-large"></i>Dashboard</a></li>
+            <li><a href="admindash.php"><i class="fas fa-th-large"></i>Dashboard</a></li>
+            <li><a href="admin_freelancer.php"><i class="fas fa-users"></i>Freelancers</a></li>
+            <li><a href="admin_client.php"><i class="fas fa-user-tie"></i>Clients</a></li>
             <li><a href="jobs.php" class="active"><i class="fas fa-briefcase"></i>Jobs</a></li>
-            <li><a href="users.php"><i class="fas fa-users"></i>Users</a></li>
-            <li><a href="payments.php"><i class="fas fa-wallet"></i>Payments</a></li>
-            <li><a href="admin_settings.php"><i class="fas fa-gear"></i>Settings</a></li>
+            <li><a href="admin_settings.php"><i class="fas fa-cog"></i>Settings</a></li>
         </ul>
     </div>
 
@@ -371,6 +370,13 @@ $result_jobs = $conn->query($sql_jobs);
         <div style="margin-bottom: 30px;">
             <h1 style="color: #1e293b; font-size: 2rem; font-weight: 700;">Job Management</h1>
             <p style="color: #64748b; margin-top: 8px;">Overview of all jobs in the system</p>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <a href="generate_jobs_pdf.php" class="logout-btn" style="background: #10b981; text-decoration: none;">
+                <i class="fas fa-download"></i>
+                Download PDF
+            </a>
         </div>
 
         <div class="table-container">
@@ -408,14 +414,13 @@ $result_jobs = $conn->query($sql_jobs);
                                         <?php echo htmlspecialchars($job['job_status']); ?>
                                     </span>
                                 </td>
-                               
                                 <td><?php echo date('d M Y', strtotime($job['deadline'])); ?></td>
                                 <td><?php echo date('d M Y', strtotime($job['date_posted'])); ?></td>
                             </tr>
                         <?php endwhile; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="10" style="text-align: center;">No jobs found.</td>
+                            <td colspan="9" style="text-align: center;">No jobs found.</td>
                         </tr>
                     <?php endif; ?>
                 </tbody>

@@ -325,8 +325,9 @@ $earning_stats = $stmt_earning_stats->get_result()->fetch_assoc();
             </div>
             <div class="user-info">
                 <div class="notification">
-                    <i class="fas fa-bell"></i>
-                    <div class="notification-dot"></div>
+                <a href="notifications.php" class="notification">
+        <i class="fas fa-bell"></i>
+    </a>
                 </div>  
                 <img src="<?php echo htmlspecialchars($freelancer_profile['profile_picture'] ?? '/api/placeholder/40/40'); ?>" 
                      alt="Profile" 

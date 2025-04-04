@@ -46,7 +46,7 @@ if ($job_id == 0 || $freelancer_id == 0) {
         
         if ($job_row = $job_result->fetch_assoc()) {
             $job_title = $job_row['job_title'];
-            $suggested_amount = $job_budget - $total_paid; // Suggest remaining amount
+            $suggested_amount = $job_budget - $total_paid; 
         } else {
             $error_message = "Job not found.";
         }
@@ -67,7 +67,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['amount']) && empty($e
     } else {
         $amount_in_paisa = $amount * 100; // Convert to paisa
         
-        // Create Razorpay Order
         $api = new Api($key_id, $key_secret);
         
         try {
@@ -99,7 +98,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['amount']) && empty($e
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* Same CSS as before */
         :root {
             --primary-color: #2563EB;
             --primary-light: #3b82f6;

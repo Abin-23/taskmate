@@ -439,10 +439,9 @@ $result_recent_projects = $stmt_recent_projects->get_result();
                 <input type="text" placeholder="Search projects or freelancers...">
             </div>
             <div class="user-info">
-                <div class="notification">
-                    <i class="fas fa-bell"></i>
-                    <div class="notification-dot"></div>
-                </div>  
+            <a href="notifications.php" class="notification">
+        <i class="fas fa-bell"></i>
+    </a>
                 <img src="<?php echo htmlspecialchars($client_profile['profile_picture'] ?? '/api/placeholder/40/40'); ?>" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <a href="logout.php" class="logout-btn">
                     <i class="fas fa-sign-out-alt"></i>

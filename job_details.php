@@ -42,17 +42,49 @@ $check_stmt->bind_param("ii", $job_id, $_SESSION['user_id']);
 $check_stmt->execute();
 $existing_application = $check_stmt->get_result()->num_rows > 0;
 
-// Handle job application
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['apply'])) {
     if (!$existing_application) {
-        $apply_sql = "INSERT INTO applications (job_id, freelancer_id) VALUES (?, ?)";
-        $apply_stmt = $conn->prepare($apply_sql);
-        $apply_stmt->bind_param("ii", $job_id, $_SESSION['user_id']);
+        // Start a transaction
+        $conn->begin_transaction();
         
-        if ($apply_stmt->execute()) {
+        try {
+            // Insert the application
+            $apply_sql = "INSERT INTO applications (job_id, freelancer_id) VALUES (?, ?)";
+            $apply_stmt = $conn->prepare($apply_sql);
+            $apply_stmt->bind_param("ii", $job_id, $_SESSION['user_id']);
+            $apply_stmt->execute();
+            
+            // Get freelancer name from users table
+            $freelancer_sql = "SELECT name FROM users WHERE id = ?";
+            $freelancer_stmt = $conn->prepare($freelancer_sql);
+            $freelancer_stmt->bind_param("i", $_SESSION['user_id']);
+            $freelancer_stmt->execute();
+            $freelancer_result = $freelancer_stmt->get_result();
+            $freelancer_data = $freelancer_result->fetch_assoc();
+            $freelancerName = $freelancer_data['name'];
+            
+            // Get job title and client ID (already available in $job array)
+            $jobTitle = $job['job_title'];
+            $client_id = $job['client_id'];
+            
+            // Create notification message
+            $notificationMessage = "A new freelancer, $freelancerName, has applied to your job '$jobTitle'!";
+            
+            // Insert notification
+            $notification_sql = "INSERT INTO notifications (user_id, type, message, related_id) 
+                                VALUES (?, 'new_application', ?, ?)";
+            $notification_stmt = $conn->prepare($notification_sql);
+            $notification_stmt->bind_param("isi", $client_id, $notificationMessage, $job_id);
+            $notification_stmt->execute();
+            
+            // Commit the transaction
+            $conn->commit();
+            
             $success_message = "Application submitted successfully!";
             $existing_application = true;
-        } else {
+        } catch (Exception $e) {
+            // Rollback on error
+            $conn->rollback();
             $error_message = "Error submitting application. Please try again.";
         }
     }

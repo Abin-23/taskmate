@@ -151,7 +151,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_messages']) && $_
         if ($hasFile) {
             $fileHTML = '<div class="file-attachment">
                 <i class="fas fa-file"></i>
-                <a href="' . htmlspecialchars($row['file_path']) . '" target="_blank">' . htmlspecialchars($row['file_name']) . '</a>
+                <a href="' . htmlspecialchars($row['file_path']) . '" target="_blank" class="file-link">' . htmlspecialchars($row['file_name']) . '</a>
+                <a href="' . htmlspecialchars($row['file_path']) . '" download="' . htmlspecialchars($row['file_name']) . '" class="download-btn" title="Download file">
+                    <i class="fas fa-download"></i>
+                </a>
             </div>';
         }
         
@@ -398,7 +401,7 @@ html, body {
 .message-form input[type="text"] {
     flex: 1;
     padding: 14px 20px;
-    padding-right: 50px; /* Space for attachment icon */
+    padding-right: 50px; 
     border: 1px solid var(--border-color);
     border-radius: 25px;
     outline: none;
@@ -719,16 +722,23 @@ input[type="file"] {
     right: 15px;
 }
 .payment {
-    background: #10b981; /* Green color for payment messages */
+    background: #10b981;
     color: white;
-    margin-left: auto;
     border-bottom-right-radius: 5px;
+    
+}
+
+.sent.payment {
+    margin-left: auto; 
+    margin-right: 0; 
 }
 
 .received.payment {
-    background: #dcfce7; /* Light green for received payment messages */
+    background: #10b981; 
     color: #064e3b;
-    border-color: #10b981;
+    border: 1px solid #10b981; 
+    margin-right: auto; 
+    margin-left: 0;
 }
 
 .payment .file-attachment {
@@ -737,6 +747,45 @@ input[type="file"] {
 
 .payment::after {
     background: linear-gradient(90deg, #059669, #10b981) !important;
+}
+.file-attachment {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Space between file name and download button */
+}
+
+.file-link {
+    flex: 1;
+    color: inherit;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    word-break: break-all;
+}
+
+.download-btn {
+    color: var(--secondary-color);
+    text-decoration: none;
+    font-size: 14px;
+    padding: 4px;
+    transition: all 0.2s ease;
+}
+
+.sent .download-btn {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.received .download-btn {
+    color: var(--primary-color);
+}
+
+.download-btn:hover {
+    color: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+.sent .download-btn:hover {
+    color: white;
 }
     </style>
 </head>
@@ -776,13 +825,16 @@ input[type="file"] {
     <p><?php echo nl2br(htmlspecialchars($row['message'])); ?></p>
     
     <?php if (!empty($row['file_name']) && !empty($row['file_path'])): ?>
-    <div class="file-attachment">
-        <i class="fas fa-file"></i>
-        <a href="<?php echo htmlspecialchars($row['file_path']); ?>" target="_blank">
-            <?php echo htmlspecialchars($row['file_name']); ?>
-        </a>
-    </div>
-    <?php endif; ?>
+<div class="file-attachment">
+    <i class="fas fa-file"></i>
+    <a href="<?php echo htmlspecialchars($row['file_path']); ?>" target="_blank" class="file-link">
+        <?php echo htmlspecialchars($row['file_name']); ?>
+    </a>
+    <a href="<?php echo htmlspecialchars($row['file_path']); ?>" download="<?php echo htmlspecialchars($row['file_name']); ?>" class="download-btn" title="Download file">
+        <i class="fas fa-download"></i>
+    </a>
+</div>
+<?php endif; ?>
     
     <small><?php echo date('h:i A', strtotime($row['sent_at'])); ?></small>
 </div>
@@ -845,11 +897,10 @@ if($role == 'client') {
     
     scrollToBottom();
     
-    // Handle file input change
     $('#fileInput').on('change', function() {
         const fileName = $(this).val().split('\\').pop();
         if (fileName) {
-            // Visual feedback
+           
             $('.attachment-btn i').removeClass('fa-paperclip').addClass('fa-check');
             
             // Submit form with file
@@ -985,7 +1036,6 @@ if($role == 'client') {
                             }
                         }
                         
-                        // Append the message
                         const messageClass = msg.sender_id == <?php echo $user_id; ?> ? 'sent' : 'received';
                         
                         let messageHtml = `
@@ -993,7 +1043,6 @@ if($role == 'client') {
                                 <p>${msg.message}</p>
                         `;
                         
-                        // Add file attachment if exists
                         if (msg.has_file) {
                             messageHtml += msg.file_html;
                         }
@@ -1002,11 +1051,9 @@ if($role == 'client') {
                         
                         $('#chatBox').append(messageHtml);
                         
-                        // Hide empty chat message if it exists
                         $('.empty-chat').hide();
                     });
                     
-                    // Only scroll if user is already at the bottom
                     const isAtBottom = chatBox.scrollHeight - chatBox.clientHeight <= chatBox.scrollTop + 100;
                     if (isAtBottom) {
                         scrollToBottom();
@@ -1016,17 +1063,13 @@ if($role == 'client') {
         });
     }
     
-    // Initial fetch and then every 3 seconds
     fetchNewMessages();
     setInterval(fetchNewMessages, 3000);
     
-    // Reset file input when clicked
     $('.attachment-btn').on('click', function() {
-        // Reset icon if it was changed
         $(this).find('i').removeClass('fa-check').addClass('fa-paperclip');
     });
     
-    // Auto-hide notifications
     setTimeout(function() {
         $('.upload-toast').fadeOut();
     }, 5000);

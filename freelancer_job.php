@@ -549,8 +549,9 @@ if (!$jobs_result) {
             </div>
             <div class="user-info">
                 <div class="notification">
-                    <i class="fas fa-bell"></i>
-                    <div class="notification-dot"></div>
+                <a href="notifications.php" class="notification">
+        <i class="fas fa-bell"></i>
+    </a>
                 </div>
                 <img src="<?php echo $user['profile_picture']; ?>" alt="Profile" style="width: 35px; height: 35px; border-radius: 50%;">
                 <a href="logout.php" style="text-decoration: none; color: #64748b;">
