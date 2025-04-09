@@ -383,7 +383,6 @@ $result_jobs = $conn->query($sql_jobs);
             <table class="jobs-table">
                 <thead>
                     <tr>
-                        <th>Job ID</th>
                         <th>Job Title</th>
                         <th>Client</th>
                         <th>Freelancer</th>
@@ -398,7 +397,6 @@ $result_jobs = $conn->query($sql_jobs);
                     <?php if ($result_jobs->num_rows > 0): ?>
                         <?php while ($job = $result_jobs->fetch_assoc()): ?>
                             <tr>
-                                <td><?php echo $job['job_id']; ?></td>
                                 <td><?php echo htmlspecialchars($job['job_title']); ?></td>
                                 <td><?php echo htmlspecialchars($job['client_name']); ?></td>
                                 <td><?php echo $job['freelancer_name'] ? htmlspecialchars($job['freelancer_name']) : 'Not Assigned'; ?></td>

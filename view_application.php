@@ -683,10 +683,13 @@ $user = $userResult->fetch_assoc();
                                         </button>
                                     </form>
                                     
-                                    <a href="view_freelancer.php<?php echo '?id=' . $application['id']; ?>" class="btn btn-view">
-                               <i class="fas fa-eye"></i>
-                               View Full Profile
-                              </a>
+                                    <form action="view_freelancer.php" method="post" style="display: inline;">
+    <input type="hidden" name="id" value="<?php echo htmlspecialchars($application['id']); ?>">
+    <button type="submit" class="btn btn-view">
+        <i class="fas fa-eye"></i>
+        View Full Profile
+    </button>
+</form>
                                 </div>
                                 <?php elseif ($application['application_status'] === 'Accepted'): ?>
                                 <div class="alert alert-success" style="margin-top: 15px;">

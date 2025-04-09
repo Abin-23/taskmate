@@ -16,7 +16,6 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Fetch skills from database
 $sql = "SELECT * FROM skills ORDER BY category, skill_name";
 $result = $conn->query($sql);
 $skills = [];

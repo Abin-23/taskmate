@@ -11,9 +11,7 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-// Get freelancer ID from URL
-$freelancer_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-
+$freelancer_id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
 // Fetch freelancer details with skills
 $query ="SELECT 
 u.id,

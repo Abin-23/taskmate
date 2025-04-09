@@ -565,7 +565,6 @@ if (!$jobs_result) {
         <div class="job-filter">
             <button class="filter-btn active" data-status="all">All Jobs</button>
             <button class="filter-btn" data-status="In Progress">In Progress</button>
-            <button class="filter-btn" data-status="Open">Pending</button>
             <button class="filter-btn" data-status="Completed">Completed</button>
         </div>
 

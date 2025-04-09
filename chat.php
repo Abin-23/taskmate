@@ -85,8 +85,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['attachment']) && $_F
     }
 }
 
-// Handle AJAX message submission
-// Handle AJAX message submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax']) && $_POST['ajax'] === 'true') {
     if (isset($_POST['message']) && !empty($_POST['message'])) {
         $message = $conn->real_escape_string(trim($_POST['message']));

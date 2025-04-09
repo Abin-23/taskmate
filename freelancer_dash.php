@@ -527,60 +527,58 @@ $unreadCount = $conn->query($unreadCountQuery)->fetch_row()[0];
         </div>
 
         <div class="job-grid">
-            <?php if ($jobs_result->num_rows > 0): ?>
-                <?php while($job = $jobs_result->fetch_assoc()): ?>
-                    <div class="job-card">
-                        <div class="job-header">
-                            <div>
-                                <div class="job-title"><?php echo htmlspecialchars($job['job_title']); ?></div>
-                                <div class="client-name"><?php echo htmlspecialchars($job['client_name']); ?></div>
-                            </div>
-                            <div class="job-budget">₹<?php echo number_format($job['budget'], 2); ?></div>
-                        </div>
-                        
-                        <div class="job-meta">
-                            <div><i class="fas fa-folder"></i> <?php echo htmlspecialchars($job['task_category']); ?></div>
-                            <div><i class="fas fa-calendar"></i> Due: <?php echo date('M d, Y', strtotime($job['deadline'])); ?></div>
-                        </div>
-                        
-                        <div class="job-description">
-                            <?php echo nl2br(htmlspecialchars(substr($job['job_description'], 0, 100))); ?>...
-                        </div>
-                        
-                        <?php if (!empty($job['tools_software'])): ?>
-                            <div class="job-tags">
-                                <?php 
-                                $tools = explode(',', $job['tools_software']);
-                                foreach(array_slice($tools, 0, 3) as $tool): 
-                                    if(trim($tool)):
-                                ?>
-                                    <span class="tag"><?php echo htmlspecialchars(trim($tool)); ?></span>
-                                <?php 
-                                    endif;
-                                endforeach; 
-                                ?>
-                            </div>
-                        <?php endif; ?>
-                        
-                        <div class="job-actions">
-                  <button class="view-details-btn" onclick="showJobDetails(<?php echo htmlspecialchars(json_encode($job)); ?>)">
-                                <i class="fas fa-eye"></i> View Details
-                            </button>
-                            <a href="job_details.php?id=<?php echo $job['job_id']; ?>" class="apply-btn">
-                                <i class="fas fa-paper-plane"></i> Apply Now
-                            </a>
-                        </div>
+    <?php if ($jobs_result->num_rows > 0): ?>
+        <?php while($job = $jobs_result->fetch_assoc()): ?>
+            <div class="job-card">
+                <div class="job-header">
+                    <div>
+                        <div class="job-title"><?php echo htmlspecialchars($job['job_title']); ?></div>
+                        <div class="client-name"><?php echo htmlspecialchars($job['client_name']); ?></div>
                     </div>
-
-                    </div>
-                    <?php endwhile; ?>
-            <?php else: ?>
-                <div style="text-align: center; padding: 40px; background: white; border-radius: 12px; grid-column: 1 / -1;">
-                    <i class="fas fa-briefcase" style="font-size: 48px; color: #cbd5e1; margin-bottom: 20px;"></i>
-                    <p style="color: #64748b;">No jobs available at the moment. Check back later!</p>
+                    <div class="job-budget">₹<?php echo number_format($job['budget'], 2); ?></div>
                 </div>
-            <?php endif; ?>
+                
+                <div class="job-meta">
+                    <div><i class="fas fa-folder"></i> <?php echo htmlspecialchars($job['task_category']); ?></div>
+                    <div><i class="fas fa-calendar"></i> Due: <?php echo date('M d, Y', strtotime($job['deadline'])); ?></div>
+                </div>
+                
+                <div class="job-description">
+                    <?php echo nl2br(htmlspecialchars(substr($job['job_description'], 0, 100))); ?>...
+                </div>
+                
+                <?php if (!empty($job['tools_software'])): ?>
+                    <div class="job-tags">
+                        <?php 
+                        $tools = explode(',', $job['tools_software']);
+                        foreach(array_slice($tools, 0, 3) as $tool): 
+                            if(trim($tool)):
+                        ?>
+                            <span class="tag"><?php echo htmlspecialchars(trim($tool)); ?></span>
+                        <?php 
+                            endif;
+                        endforeach; 
+                        ?>
+                    </div>
+                <?php endif; ?>
+                
+                <div class="job-actions">
+                    <button class="view-details-btn" onclick="showJobDetails(<?php echo htmlspecialchars(json_encode($job)); ?>)">
+                        <i class="fas fa-eye"></i> View Details
+                    </button>
+                    <a href="job_details.php?id=<?php echo $job['job_id']; ?>" class="apply-btn">
+                        <i class="fas fa-paper-plane"></i> Apply Now
+                    </a>
+                </div>
+            </div>
+        <?php endwhile; ?>
+    <?php else: ?>
+        <div style="text-align: center; padding: 40px; background: white; border-radius: 12px; grid-column: 1 / -1;">
+            <i class="fas fa-briefcase" style="font-size: 48px; color: #cbd5e1; margin-bottom: 20px;"></i>
+            <p style="color: #64748b;">No jobs available at the moment. Check back later!</p>
         </div>
+    <?php endif; ?>
+</div>
 
         <!-- Modal for job details -->
         <div id="jobModal" class="modal">
